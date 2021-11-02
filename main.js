@@ -1,9 +1,6 @@
 
-import { detectionRectangle, detectionDocument } from "./js/fixRectangle.js";
-import { A8_sheet_ver2, A4_sheet, B4_sheet } from "./js/reviseRectangle.js";
-
+import { detectionDocument } from "./js/fixRectangle.js";
 import { ControllerCamera } from "./js/camera.js";
-import { ScreenAttributes } from "./js/screenAttributes.js";
 window.addEventListener("load", () => {
   const streamVideo = document.getElementById("streamVideo");
   const videoOutput = document.getElementById("videoOutput");
@@ -11,9 +8,9 @@ window.addEventListener("load", () => {
   const snapShot = document.getElementById("snapShot");
   const rotate = document.getElementById("rotate");
   const sheetType = document.getElementById("sheetType");
+  const correction = document.getElementById("correction");
   const videoWidth = 1280;
   const videoHeight = 720;
-
   const CAMERA = new ControllerCamera(streamVideo, videoWidth, videoHeight);
 
   let workSheetNmae = "A8"
@@ -24,39 +21,10 @@ window.addEventListener("load", () => {
   let cleanDst = null;
   let degree = 0;
   let canvasLoopLock = true;
+  let boundRectInfo = [];
+  let saveBoundRectInfo = [];
+
   window.processVideoCanvasID = null;
-
-
-  async function startUpCamera(deviceId) {
-    if (!deviceId) {
-      deviceId = CAMERA.currentDeviceId
-    }
-
-    CAMERA.webcam.width = CAMERA.videoWidth;
-    CAMERA.webcam.height = CAMERA.videoHeight;
-
-    await CAMERA.stopStream().catch(err => console.log(err));
-    await CAMERA.getStream(deviceId)
-    await CAMERA.handleStream(CAMERA.webcam, CAMERA.mediaStream);
-
-    return true
-  }
-
-  async function initCamera() {
-    let devices = await CAMERA.getDeviceList()
-
-    await startUpCamera();
-
-    // frist access camera is reload
-    if (devices.length === 1 && devices[0] === "") {
-      await CAMERA.stopStream();
-      await CAMERA.getDeviceList() // frist access camera
-      await CAMERA.getStream(CAMERA.currentDeviceId)
-      await CAMERA.handleStream(CAMERA.webcam, CAMERA.mediaStream);
-    }
-
-    return true
-  }
 
   function AllSortRectangleV2(momentPointXY, drawDst, drawLine) {
 
@@ -477,86 +445,59 @@ window.addEventListener("load", () => {
     return totlaResult
   }
 
-  function rotateImageDst(dst, drawDst) {
+  async function startUpCamera(deviceId) {
+    if (!deviceId) {
+      deviceId = CAMERA.currentDeviceId
+    }
+
+    CAMERA.webcam.width = CAMERA.videoWidth;
+    CAMERA.webcam.height = CAMERA.videoHeight;
+
+    await CAMERA.stopStream().catch(err => console.log(err));
+    await CAMERA.getStream(deviceId)
+    await CAMERA.handleStream(CAMERA.webcam, CAMERA.mediaStream);
+
+    return true
+  }
+
+  async function initCamera() {
+    let devices = await CAMERA.getDeviceList()
+
+    await startUpCamera();
+
+    // frist access camera is reload
+    if (devices.length === 1 && devices[0] === "") {
+      await CAMERA.stopStream();
+      await CAMERA.getDeviceList() // frist access camera
+      await CAMERA.getStream(CAMERA.currentDeviceId)
+      await CAMERA.handleStream(CAMERA.webcam, CAMERA.mediaStream);
+    }
+
+    return true
+  }
+
+  function rotateImageDst(dst) {
     switch (degree) {
       case 0:
         break;
       case 90:
-        cv.flip(dst, dst, 0)
-        cv.transpose(dst, dst)
-        cv.flip(drawDst, drawDst, 0)
-        cv.transpose(drawDst, drawDst)
+        cv.flip(dst, dst, 0);
+        cv.transpose(dst, dst);
         break;
       case 180:
-        cv.flip(dst, dst, 1)
-        cv.flip(dst, dst, 0)
-        cv.flip(drawDst, drawDst, 1)
-        cv.flip(drawDst, drawDst, 0)
+        cv.flip(dst, dst, 1);
+        cv.flip(dst, dst, 0);
         break;
       case 270:
-        cv.flip(dst, dst, 1)
-        cv.transpose(dst, dst)
-        cv.flip(drawDst, drawDst, 1)
-        cv.transpose(drawDst, drawDst)
+        cv.flip(dst, dst, 1);
+        cv.transpose(dst, dst);
         break;
       default:
         break;
     }
   }
 
-  function drawRectangle(params, color, drawDst) {
-
-    let blackColor = new cv.Scalar(0, 0, 0, 255);
-    let redColor = new cv.Scalar(255, 0, 50, 255);
-
-    // if (degree == 0 || degree == 180) {
-    //   let e1 = new cv.Point(0, videoHeight / 2);
-    //   let e2 = new cv.Point(videoWidth, videoHeight / 2);
-    //   let e3 = new cv.Point(videoWidth / 2, 0);
-    //   let e4 = new cv.Point(videoWidth / 2, videoHeight);
-    //   cv.line(drawDst, e1, e2, blackColor, 1.5, cv.LINE_AA, 0);
-    //   cv.line(drawDst, e3, e4, blackColor, 1.5, cv.LINE_AA, 0);
-    // } else {
-    //   let e1 = new cv.Point(videoHeight / 2, 0);
-    //   let e2 = new cv.Point(videoHeight / 2, videoWidth);
-    //   let e3 = new cv.Point(0, videoWidth / 2);
-    //   let e4 = new cv.Point(videoHeight, videoWidth / 2);
-    //   cv.line(drawDst, e1, e2, blackColor, 1.5, cv.LINE_AA, 0);
-    //   cv.line(drawDst, e3, e4, blackColor, 1.5, cv.LINE_AA, 0);
-    // }
-
-    if (typeof params.cntInfo.angle === "undefined") {
-      color = redColor // 紅色框線
-    }
-
-    //畫矩形
-    let point1 = new cv.Point(params['cntPoint'][0]['x'], params['cntPoint'][0]['y']);
-    let point2 = new cv.Point(params['cntPoint'][1]['x'], params['cntPoint'][1]['y']);
-    let point3 = new cv.Point(params['cntPoint'][2]['x'], params['cntPoint'][2]['y']);
-    let point4 = new cv.Point(params['cntPoint'][3]['x'], params['cntPoint'][3]['y']);
-
-    cv.line(drawDst, point1, point2, color, 2, cv.LINE_AA, 0)
-    cv.line(drawDst, point1, point4, color, 2, cv.LINE_AA, 0)
-    cv.line(drawDst, point3, point2, color, 2, cv.LINE_AA, 0)
-    cv.line(drawDst, point3, point4, color, 2, cv.LINE_AA, 0)
-
-    // 畫中心圓
-    // let centerColor = new cv.Scalar(255, 255, 0);
-    // let centerPoint1 = new cv.Point(params.cntInfo.center.x, params.cntInfo.center.y);
-    // cv.circle(drawDst, centerPoint1, 15, centerColor, 1, cv.LINE_AA, 0)
-
-    //畫字
-    const textCenter = new cv.Point(params.cntInfo.center.x - 10, params.cntInfo.center.y + 10);
-    // const textCenter = new cv.Point(params["cntPoint"][2].x - 25, params["cntPoint"][2].y - 25);
-    cv.putText(drawDst, params.cntInfo.counter.toString(), textCenter, cv.FONT_HERSHEY_SIMPLEX, 1, blackColor, 2, 3, false);
-
-    // 畫最小外接矩形
-    // let boundingRectPoint1 = new cv.Point(params.cntInfo.boundingRect.x, params.cntInfo.boundingRect.y);
-    // let boundingRectPoint2 = new cv.Point(params.cntInfo.boundingRect.x + params.cntInfo.boundingRect.width, params.cntInfo.boundingRect.y + params.cntInfo.boundingRect.height);
-    // cv.rectangle(drawDst, boundingRectPoint1, boundingRectPoint2, new cv.Scalar(0, 255, 0, 255), 1, cv.LINE_AA, 0)
-  }
-
-  function drawBigRectange(dst, boundRectInfo) {
+  function drawBoundRectangle(dst, boundRectInfo) {
 
     let red = new cv.Scalar(255, 0, 50, 255);
     let green = new cv.Scalar(50, 255, 0, 255);
@@ -565,7 +506,7 @@ window.addEventListener("load", () => {
     let boundPoint1 = new cv.Point(boundRectInfo["bigBoundingRect"].x, boundRectInfo["bigBoundingRect"].y);
     let boundPoint2 = new cv.Point(boundRectInfo["bigBoundingRect"].x + boundRectInfo["bigBoundingRect"].width, boundRectInfo["bigBoundingRect"].y + boundRectInfo["bigBoundingRect"].height);
     cv.rectangle(dst, boundPoint1, boundPoint2, green, 5, cv.LINE_AA, 0)
-    
+
     // 矩形的所有頂點
     let rectPoint = boundRectInfo["bigRect"]["point"];
     // 頂點
@@ -575,16 +516,24 @@ window.addEventListener("load", () => {
     let point4 = new cv.Point(rectPoint[3]['x'], rectPoint[3]['y']);
 
     //畫矩形
-    cv.line(dst, point1, point2, red, 5, cv.LINE_AA, 0)
-    cv.line(dst, point1, point4, red, 5, cv.LINE_AA, 0)
-    cv.line(dst, point3, point2, red, 5, cv.LINE_AA, 0)
-    cv.line(dst, point3, point4, red, 5, cv.LINE_AA, 0)
+    cv.line(dst, point1, point2, red, 4, cv.LINE_AA, 0)
+    cv.line(dst, point1, point4, red, 4, cv.LINE_AA, 0)
+    cv.line(dst, point3, point2, red, 4, cv.LINE_AA, 0)
+    cv.line(dst, point3, point4, red, 4, cv.LINE_AA, 0)
 
     // 畫頂點圓
-    cv.circle(dst, point1, 10, red, 20, cv.FILLED, 0)
-    cv.circle(dst, point2, 10, red, 20, cv.FILLED, 0)
-    cv.circle(dst, point3, 10, red, 20, cv.FILLED, 0)
-    cv.circle(dst, point4, 10, red, 20, cv.FILLED, 0)
+    cv.circle(dst, point1, 6, red, 12, cv.FILLED, 0)
+    cv.circle(dst, point2, 6, red, 12, cv.FILLED, 0)
+    cv.circle(dst, point3, 6, red, 12, cv.FILLED, 0)
+    cv.circle(dst, point4, 6, red, 12, cv.FILLED, 0)
+
+  }
+
+  function warpPerspective(dst, boundRectInfo) {
+
+
+
+
 
   }
 
@@ -618,10 +567,6 @@ window.addEventListener("load", () => {
     streamVideo.height = canvasHeight;
 
     const showCanvas = function () {
-      let screen_rect_info;
-      let rect_sort_end_point = [];
-      let calculateRectangle = true;
-      let boundRectInfo = [];
 
       cap = new cv.VideoCapture(streamVideo);
       src = new cv.Mat(canvasHeight, canvasWidth, cv.CV_8UC4);
@@ -633,11 +578,12 @@ window.addEventListener("load", () => {
 
         cap.read(src);
 
-        src.copyTo(drawDst); // 清除drawDst
+        src.copyTo(drawDst); // 繪製全新的 drawDst
 
         cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY);
 
-        rotateImageDst(dst, drawDst);
+        rotateImageDst(dst);
+        rotateImageDst(drawDst);
 
         if (degree === 90 || degree === 270) {
           boundRectInfo = detectionDocument(dst, drawDst, videoHeight, videoWidth)
@@ -645,11 +591,9 @@ window.addEventListener("load", () => {
           boundRectInfo = detectionDocument(dst, drawDst, videoWidth, videoHeight)
         }
 
-
         cv.imshow('drawOutput', drawDst);
 
         cv.imshow('videoOutput', dst);
-
 
         if (canvasLoopLock === false) {
           clearTimeout(window.processVideoCanvasID);
@@ -666,36 +610,6 @@ window.addEventListener("load", () => {
 
       }
 
-      snapShot.onclick = null;
-
-      snapShot.onclick = () => {
-
-        let rotateDst = new cv.Mat(videoHeight, videoWidth, cv.CV_8UC4);
-        src.copyTo(rotateDst);
-
-        switch (degree) {
-          case 0:
-            break;
-          case 90:
-            cv.flip(rotateDst, rotateDst, 0)
-            cv.transpose(rotateDst, rotateDst)
-            break;
-          case 180:
-            cv.flip(rotateDst, rotateDst, 1)
-            cv.flip(rotateDst, rotateDst, 0)
-            break;
-          case 270:
-            cv.flip(rotateDst, rotateDst, 1)
-            cv.transpose(rotateDst, rotateDst)
-            break;
-          default:
-            break;
-        }
-
-        appendCanvasEdit(rotateDst, boundRectInfo)
-
-      }
-
       drawCanvas();
     }
 
@@ -703,17 +617,25 @@ window.addEventListener("load", () => {
   }
 
   function appendCanvasEdit(dst, boundRectInfo) {
-    console.log(boundRectInfo)
-    drawBigRectange(dst, boundRectInfo);
-
+    drawBoundRectangle(dst, boundRectInfo);
     cv.imshow('editCanvas', dst);
   }
 
   initCamera().then(() => {
-
     canvasStart();
-
   }).catch(err => console.log(err));
+
+  snapShot.onclick = () => {
+    const saveDst = new cv.Mat(videoHeight, videoWidth, cv.CV_8UC4);
+    src.copyTo(saveDst);
+
+    rotateImageDst(saveDst)
+
+    //把截圖後需要處理的資料數據存下來
+    saveBoundRectInfo = boundRectInfo;
+    saveBoundRectInfo["dst"] = saveDst;
+    appendCanvasEdit(saveDst, saveBoundRectInfo)
+  }
 
   rotate.onclick = () => {
     degree = degree + 90;
@@ -722,6 +644,9 @@ window.addEventListener("load", () => {
     }
   }
 
+  correction.onclick = () => {
 
 
-})
+  }
+
+});
