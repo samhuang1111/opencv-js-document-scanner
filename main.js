@@ -2,448 +2,36 @@
 import { detectionDocument } from "./js/fixRectangle.js";
 import { ControllerCamera } from "./js/camera.js";
 window.addEventListener("load", () => {
-  const streamVideo = document.getElementById("streamVideo");
-  const videoOutput = document.getElementById("videoOutput");
-  const editSection = document.getElementById("editSection")
-  const snapShot = document.getElementById("snapShot");
-  const rotate = document.getElementById("rotate");
-  const sheetType = document.getElementById("sheetType");
-  const correction = document.getElementById("correction");
   const videoWidth = 1280;
   const videoHeight = 720;
+  const streamVideo = document.getElementById("streamVideo");
+  const editCanvas = document.getElementById("editCanvas");
+  const editContext = editCanvas.getContext("2d");
+
+  const snapShot = document.getElementById("snapShot");
+  const rotate = document.getElementById("rotate");
+  const correction = document.getElementById("correction");
+  const reset = document.getElementById("reset")
+
   const CAMERA = new ControllerCamera(streamVideo, videoWidth, videoHeight);
 
-  let workSheetNmae = "A8"
   let cap = null;
   let src = null;
   let dst = null;
   let drawDst = null;
   let cleanDst = null;
   let degree = 0;
-  let canvasLoopLock = true;
-  let boundRectInfo = [];
-  let saveBoundRectInfo = [];
-
-  window.processVideoCanvasID = null;
-
-  function AllSortRectangleV2(momentPointXY, drawDst, drawLine) {
-
-    let totlaResult = []
-
-    let horizon = false;
-
-    for (let k = 0; k < momentPointXY.length; k++) {
-
-      const element = momentPointXY[k].cntInfo.angle;
-
-      if (typeof element !== "undefined" && workSheetNmae == 'A8')
-        horizon = element < 50 ? false : true;
-
-      if (typeof element !== "undefined" && workSheetNmae == 'B4')
-        horizon = element < 20 ? false : true;
-
-      if (workSheetNmae == 'A4')
-        horizon = true;
-
-    }
-
-    if (workSheetNmae == 'B4') {
-
-      if (horizon)
-        momentPointXY.sort(function (a, b) {
-          return a['cntInfo']['center'].x - b['cntInfo']['center'].x
-        });
-      else
-        momentPointXY.sort(function (a, b) {
-          return a['cntInfo']['center'].y - b['cntInfo']['center'].y
-        });
-
-      return momentPointXY
-    }
-
-    let horizontalSort = function () {
-
-      if (momentPointXY.length != 0) {
-
-        let newSortEndPointXY = [...momentPointXY];
-
-        let center = {
-          'x': 0,
-          'y': 0,
-          'totalAngle': 0,
-          'tx': 0,
-          'ty': 0
-        }
-
-        for (let d = 0; d < newSortEndPointXY.length; d++) {
-          center.totalAngle += newSortEndPointXY[d].cntInfo.angle
-          center.x += newSortEndPointXY[d].cntInfo.center.x;
-          center.y += newSortEndPointXY[d].cntInfo.center.y;
-        }
-
-        center.totalAngle /= newSortEndPointXY.length;
-        center.x /= newSortEndPointXY.length;
-        center.y /= newSortEndPointXY.length;
-
-        let dxdy =
-          (newSortEndPointXY[0]['cntPoint'][1].x - newSortEndPointXY[0]['cntPoint'][2].x) /
-          (newSortEndPointXY[0]['cntPoint'][1].y - newSortEndPointXY[0]['cntPoint'][2].y)
-
-
-        let d2 = center.x * 2 * dxdy / 2;
-        let y2 = new cv.Point(0, center.y + d2);
-        let y1 = new cv.Point(center.x * 2, center.y - d2);
-
-        let b = (dxdy * center.x - center.y) * -1
-
-        if (0) {
-
-          cv.circle(drawDst, new cv.Point(0, center.y), 5, new cv.Scalar(255, 255, 255), 10, cv.LINE_AA, 0);
-          cv.circle(drawDst, new cv.Point(y1.x, center.y), 5, new cv.Scalar(255, 255, 255), 10, cv.LINE_AA, 0);
-          cv.line(drawDst, new cv.Point(0, center.y), new cv.Point(y1.x, center.y), new cv.Scalar(255, 0, 0), 10, cv.LINE_AA, 0)
-
-          cv.line(drawDst, y1, new cv.Point(center.x, center.y), new cv.Scalar(255, 0, 0), 6, cv.LINE_AA, 0)
-          cv.line(drawDst, y2, new cv.Point(center.x, center.y), new cv.Scalar(255, 0, 255), 3, cv.LINE_AA, 0)
-
-        }
-
-        if (newSortEndPointXY.length) {
-
-          let result1 = newSortEndPointXY.filter(function (ele) {
-            // m * x - y + b = 0
-            // m * x - y + b > 0
-            // m * x - y + b < 0
-            let val = ((y2.x - y1.x) * (ele.cntInfo.center.y - y1.y) - (y2.y - y1.y) * (ele.cntInfo.center.x - y1.x)).toFixed(0)
-
-            return val > 0
-          })
-          let result2 = newSortEndPointXY.filter(function (ele) {
-
-            let val = ((y2.x - y1.x) * (ele.cntInfo.center.y - y1.y) - (y2.y - y1.y) * (ele.cntInfo.center.x - y1.x)).toFixed(0)
-
-            return val < 0
-          })
-
-          result1.sort(function (a, b) {
-            return a['cntInfo']['center'].x - b['cntInfo']['center'].x
-          })
-          result2.sort(function (a, b) {
-            return a['cntInfo']['center'].x - b['cntInfo']['center'].x
-          })
-
-          totlaResult = result1.concat(result2);
-
-          let vJudge = function (totlaResult) {
-
-            let ret = [];
-
-            for (let e = 0; e < totlaResult.length - 1; e++) {
-
-              const element1 = newSortEndPointXY[e];
-              const element2 = newSortEndPointXY[e + 1];
-
-              let ddd = Math.pow(element2.cntInfo.center.x - element1.cntInfo.center.x, 2) +
-                Math.pow(element2.cntInfo.center.y - element1.cntInfo.center.y, 2)
-
-              ddd = Math.sqrt(ddd)
-              ret.push(ddd)
-
-            }
-
-            const map1 = ret.map(x => (x / 200).toFixed(0));
-
-            let lock = 0;
-
-            for (let t = 0; t < map1.length; t++) {
-              const element = map1[t];
-              if (element != "1") {
-                lock = 1;
-                break;
-              }
-
-            }
-
-            return lock
-          }
-
-          const tempRes = vJudge(totlaResult) ? totlaResult : totlaResult.sort(function (a, b) {
-            return a['cntInfo']['center'].x - b['cntInfo']['center'].x
-          });
-
-          totlaResult = []
-          totlaResult = tempRes;
-
-        }
-
-      } else {
-
-        totlaResult = momentPointXY
-      }
-
-    }
-
-    let verticalSort = function () {
-      let newSortEndPointXY = [...momentPointXY];
-
-      let center = {
-        'x': 0,
-        'y': 0,
-        'totalAngle': 0,
-        'tx': 0,
-        'ty': 0
-      }
-
-      for (let d = 0; d < newSortEndPointXY.length; d++) {
-        center.totalAngle += newSortEndPointXY[d].cntInfo.angle
-        center.x += newSortEndPointXY[d].cntInfo.center.x;
-        center.y += newSortEndPointXY[d].cntInfo.center.y;
-      }
-
-      center.totalAngle /= newSortEndPointXY.length;
-      center.x /= newSortEndPointXY.length;
-      center.y /= newSortEndPointXY.length;
-
-      let dxdy =
-        (newSortEndPointXY[0]['cntPoint'][1].x - newSortEndPointXY[0]['cntPoint'][2].x) /
-        (newSortEndPointXY[0]['cntPoint'][1].y - newSortEndPointXY[0]['cntPoint'][2].y)
-
-      let d1 = center.x * 2 * dxdy / 2;
-      let d = center.y * 2 * dxdy / 2;
-
-      let x1 = new cv.Point(center.x + d, center.y * 2);
-      let x2 = new cv.Point(center.x - d, 0);
-
-      let y1 = new cv.Point(center.x * 2, center.y - d1);
-      let y2 = new cv.Point(0, center.y + d1);
-
-      // cv.line(drawDst, x1, new cv.Point(center.x, center.y), new cv.Scalar(200, 0, 200), 10, cv.LINE_AA, 0)
-      // cv.line(drawDst, x2, new cv.Point(center.x, center.y), new cv.Scalar(200, 0, 200), 10, cv.LINE_AA, 0)
-      // cv.line(drawDst, new cv.Point(center.x, center.y), y1, new cv.Scalar(200, 0, 200), 10, cv.LINE_AA, 0)
-      // cv.line(drawDst, new cv.Point(center.x, center.y), y2, new cv.Scalar(200, 0, 200), 10, cv.LINE_AA, 0)
-      // cv.circle(drawDst, new cv.Point(center.x, center.y), 10, new cv.Scalar(255, 255, 255), 6, cv.LINE_AA, 0);
-
-      //多次分割 線上方 線中間 線下方
-      let result1 = newSortEndPointXY.filter(function (ele) {
-
-        let c = {
-          'x': ele.cntInfo.center.x,
-          'y': ele.cntInfo.center.y
-        }
-        let val = ((y2.x - y1.x) * (c.y - y1.y) - (y2.y - y1.y) * (c.x - y1.x)).toFixed(0)
-
-        return val > 0 && val > 7000;
-      })
-
-      let result2 = newSortEndPointXY.filter(function (ele) {
-
-        let c = {
-          'x': ele.cntInfo.center.x,
-          'y': ele.cntInfo.center.y
-        }
-        let val = ((y2.x - y1.x) * (c.y - y1.y) - (y2.y - y1.y) * (c.x - y1.x)).toFixed(0)
-
-        return val < 0 && val < -7000;
-      })
-
-      let result3 = newSortEndPointXY.filter(function (ele) {
-
-        let c = {
-          'x': ele.cntInfo.center.x,
-          'y': ele.cntInfo.center.y
-        }
-        let val = ((y2.x - y1.x) * (c.y - y1.y) - (y2.y - y1.y) * (c.x - y1.x)).toFixed(0)
-
-        return val > -7000 && val < 7000;
-      })
-
-      // console.log('===============')
-      // newSortEndPointXY.forEach(function (ele) {
-      // 	let c = {
-      // 		'x': ele.cntInfo.center.x,
-      // 		'y': ele.cntInfo.center.y
-      // 	}
-      // 	let val = ((y2.x - y1.x) * (c.y - y1.y) - (y2.y - y1.y) * (c.x - y1.x)).toFixed(0)
-      // 	console.log(val)
-      // })
-      // console.log('===============')
-
-      let sort = function (array) {
-
-        let ctx = 0,
-          cty = 0;
-
-        for (let d = 0; d < array.length; d++) {
-          ctx += array[d].cntInfo.center.x;
-          cty += array[d].cntInfo.center.y;
-        }
-
-        center.totalAngle /= array.length;
-        ctx /= array.length;
-        cty /= array.length;
-
-        let sortdxdy =
-          (array[0]['cntPoint'][1].x - array[0]['cntPoint'][2].x) /
-          (array[0]['cntPoint'][1].y - array[0]['cntPoint'][2].y)
-
-        let d1 = ctx * 2 * sortdxdy / 2;
-
-        let y1 = new cv.Point(ctx * 2, cty - d1);
-        let y2 = new cv.Point(0, cty + d1);
-
-        // cv.circle(drawDst, new cv.Point(ctx, cty), 20, new cv.Scalar(0, 180, 180), 10, cv.LINE_AA, 0);
-        // cv.line(drawDst, new cv.Point(ctx, cty), y1, new cv.Scalar(200, 0, 200), 10, cv.LINE_AA, 0)
-        // cv.line(drawDst, new cv.Point(ctx, cty), y2, new cv.Scalar(200, 0, 200), 10, cv.LINE_AA, 0)
-
-        let r1 = array.filter(function (ele) {
-          let c = {
-            'x': ele.cntInfo.center.x,
-            'y': ele.cntInfo.center.y
-          }
-
-          return ((y2.x - y1.x) * (c.y - y1.y) - (y2.y - y1.y) * (c.x - y1.x)) > 0
-        });
-
-        let r2 = array.filter(function (ele) {
-          let c = {
-            'x': ele.cntInfo.center.x,
-            'y': ele.cntInfo.center.y
-          }
-          return ((y2.x - y1.x) * (c.y - y1.y) - (y2.y - y1.y) * (c.x - y1.x)) < 0
-        });
-
-        r1.sort(function (a, b) {
-          return a['cntInfo']['center'].x - b['cntInfo']['center'].x
-        })
-
-        r2.sort(function (a, b) {
-          return a['cntInfo']['center'].x - b['cntInfo']['center'].x
-        })
-
-        let r1Andr2 = r1.concat(r2);
-
-        if (r1Andr2.length == 2) {
-
-          let rdxdy =
-            (r1Andr2[0]['cntInfo']['center'].x - r1Andr2[1]['cntInfo']['center'].x) /
-            (r1Andr2[0]['cntInfo']['center'].y - r1Andr2[1]['cntInfo']['center'].y)
-
-          if (isFinite(rdxdy)) {
-
-            let rdxdyAbs = Math.abs(rdxdy)
-
-            let vJudge = function (totlaResult) {
-
-              let ret = [];
-              let lock = false;
-
-              for (let e = 0; e < totlaResult.length - 1; e++) {
-                const element1 = totlaResult[e];
-                const element2 = totlaResult[e + 1];
-
-                // cv.line(drawDst,
-                // 	new cv.Point(element2.cntInfo.center.x, element2.cntInfo.center.y),
-                // 	new cv.Point(element1.cntInfo.center.x, element1.cntInfo.center.y),
-                // 	new cv.Scalar(200, 0, 200), 2, cv.LINE_AA, 0)
-
-                let ddd = Math.pow(element2.cntInfo.center.x - element1.cntInfo.center.x, 2) +
-                  Math.pow(element2.cntInfo.center.y - element1.cntInfo.center.y, 2)
-                ddd = Math.sqrt(ddd)
-                ret.push(ddd)
-              }
-
-              const map1 = ret.filter(x => 200 * 2 < x);
-
-              if (map1.length)
-                lock = true
-
-              return lock;
-            }
-
-            let Diagonal = vJudge(r1Andr2)
-
-            if (Diagonal) {
-
-              //console.log('對角')
-              r1Andr2.sort(function (a, b) {
-                //水平由左而右排列
-                return a.cntInfo.center.x - b.cntInfo.center.x
-              })
-              if (r1Andr2[1].cntInfo.center.y < r1Andr2[0].cntInfo.center.y) {
-                let temp = r1Andr2[1];
-                r1Andr2[1] = r1Andr2[0];
-                r1Andr2[0] = temp;
-                // cv.circle(drawDst, new cv.Point(r1Andr2[1].cntInfo.center.x, r1Andr2[1].cntInfo.center.x),
-                // 10, new cv.Scalar(0, 0, 180), 6, cv.LINE_AA, 0);
-              }
-
-
-            } else {
-
-
-              let hjudge = 0;
-
-              r1Andr2.forEach(function (ele) {
-
-                if (ele.cntInfo.center.x < (ctx + 70) && ele.cntInfo.center.x > (ctx - 70)) {
-                  hjudge = 0
-                  //console.log('垂直')
-                } else {
-                  hjudge = 1;
-                  //console.log('水平')
-                }
-
-              })
-
-              if (hjudge) {
-                r1Andr2.sort(function (a, b) {
-
-                  return a.cntInfo.center.x - b.cntInfo.center.x
-                })
-              } else {
-                r1Andr2.sort(function (a, b) {
-
-                  return a.cntInfo.center.y - b.cntInfo.center.y
-                })
-              }
-
-            }
-
-          }
-
-        }
-
-        if (array.length == 1) {
-
-          return array;
-        }
-
-        return r1Andr2
-      }
-
-      //console.log(result3.length, result2.length, result1.length)
-      if (result3.length && result2.length && result1.length) {
-        result1 = sort(result1);
-        result2 = sort(result2);
-        result3 = sort(result3);
-
-      } else if (result2.length && result1.length) {
-        result1 = sort(result1);
-        result2 = sort(result2);
-
-      }
-
-      // totlaResult = result1
-      // totlaResult = result2
-      // totlaResult = result3
-
-      totlaResult = result1.concat(result3).concat(result2)
-    }
-
-    if (momentPointXY.length)
-      horizon ? horizontalSort() : verticalSort();
-
-    return totlaResult
-  }
+  let pauseCanvas = false;
+  let boundRectInfo = {};
+  let saveBoundRectInfo = {};
+  let editCircleInfo = {
+    radius: 37,
+    lineWidth: 1,
+    realRadius: 40,
+    lineStrokeStyle: "blue",
+    circleStrokeStyle: "rgba(255, 255, 255, 0.5)",
+    circleFillStyle: "rgba(255, 255, 255, 0.7)"
+  };
 
   async function startUpCamera(deviceId) {
     if (!deviceId) {
@@ -476,9 +64,10 @@ window.addEventListener("load", () => {
     return true
   }
 
-  function rotateImageDst(dst) {
+  function rotateDst(dst) {
     switch (degree) {
       case 0:
+        // 不用做任何處理
         break;
       case 90:
         cv.flip(dst, dst, 0);
@@ -493,6 +82,7 @@ window.addEventListener("load", () => {
         cv.transpose(dst, dst);
         break;
       default:
+        // 不用做任何處理
         break;
     }
   }
@@ -529,14 +119,6 @@ window.addEventListener("load", () => {
 
   }
 
-  function warpPerspective(dst, boundRectInfo) {
-
-
-
-
-
-  }
-
   function canvasStart() {
     if (cap) cap = null;
     if (src) src.delete()
@@ -547,7 +129,7 @@ window.addEventListener("load", () => {
 
     let canvasWidth = videoWidth;
     let canvasHeight = videoHeight;
-    canvasLoopLock = true;
+    pauseCanvas = false;
 
     if (canvasHeight / canvasWidth == 0.5625) {
       if (canvasWidth < 1280)
@@ -572,8 +154,9 @@ window.addEventListener("load", () => {
       src = new cv.Mat(canvasHeight, canvasWidth, cv.CV_8UC4);
       dst = new cv.Mat(canvasHeight, canvasWidth, cv.CV_8UC1);
       drawDst = new cv.Mat(canvasHeight, canvasWidth, cv.CV_8UC4, new cv.Scalar(255, 0, 255, 0));
-
+      cleanDst = new cv.Mat(canvasHeight, canvasWidth, cv.CV_8UC4, new cv.Scalar(255, 0, 255, 0));
       const drawCanvas = function () {
+
         const begin = Date.now();
 
         cap.read(src);
@@ -582,8 +165,9 @@ window.addEventListener("load", () => {
 
         cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY);
 
-        rotateImageDst(dst);
-        rotateImageDst(drawDst);
+        rotateDst(dst);
+
+        rotateDst(drawDst);
 
         if (degree === 90 || degree === 270) {
           boundRectInfo = detectionDocument(dst, drawDst, videoHeight, videoWidth)
@@ -593,16 +177,15 @@ window.addEventListener("load", () => {
 
         cv.imshow('drawOutput', drawDst);
 
-        cv.imshow('videoOutput', dst);
 
-        if (canvasLoopLock === false) {
+        if (pauseCanvas === true) {
           clearTimeout(window.processVideoCanvasID);
           return false;
         }
 
-        let timer = 60 - (Date.now() - begin);
+        let timer = 33 - (Date.now() - begin);
 
-        if (canvasLoopLock === true) {
+        if (pauseCanvas === false) {
           window.processVideoCanvasID = setTimeout(() => {
             drawCanvas();
           }, timer)
@@ -616,25 +199,221 @@ window.addEventListener("load", () => {
     showCanvas();
   }
 
-  function appendCanvasEdit(dst, boundRectInfo) {
-    drawBoundRectangle(dst, boundRectInfo);
-    cv.imshow('editCanvas', dst);
+  function calcBoundRectData(boundRectInfo){
+    
   }
+
+  function rendererEditCompoent(boundRectInfo) {
+
+    editContext.clearRect(0, 0, editCanvas.width, editCanvas.height);
+
+    const drawBoundRect = () => {
+      // 畫最小外接矩形
+      let boundPoint = new cv.Point(boundRectInfo["bigBoundingRect"].x, boundRectInfo["bigBoundingRect"].y);
+      let boundSize = {
+        width: boundRectInfo["bigBoundingRect"].width,
+        height: boundRectInfo["bigBoundingRect"].height
+      }
+
+      // 繪製最小外接矩形
+      editContext.beginPath();
+      editContext.lineWidth = "6";
+      editContext.strokeStyle = "blue";
+      editContext.rect(boundPoint.x, boundPoint.y, boundSize.width, boundSize.height);
+      editContext.stroke();
+    }
+
+    const drawRect = () => {
+      const points = boundRectInfo["bigRect"]["point"];
+
+      let point1 = new cv.Point(points[0]['x'], points[0]['y']);
+      let point2 = new cv.Point(points[1]['x'], points[1]['y']);
+      let point3 = new cv.Point(points[2]['x'], points[2]['y']);
+      let point4 = new cv.Point(points[3]['x'], points[3]['y']);
+
+      //畫矩形
+      editContext.beginPath();
+      editContext.lineWidth = "6";
+      editContext.strokeStyle = "red";
+      editContext.moveTo(point1.x, point1.y);
+      editContext.lineTo(point2.x, point2.y);
+      editContext.moveTo(point1.x, point1.y);
+      editContext.lineTo(point4.x, point4.y);
+      editContext.moveTo(point3.x, point3.y);
+      editContext.lineTo(point2.x, point2.y);
+      editContext.moveTo(point3.x, point3.y);
+      editContext.lineTo(point4.x, point4.y);
+      editContext.stroke();
+
+    }
+
+    const drawCircle = () => {
+      // 繪製圓形控制項目
+      const points = boundRectInfo["bigRect"]["point"];
+
+      editContext.lineWidth = editCircleInfo.lineWidth; // 圓形線條的寬度
+      editContext.strokeStyle = editCircleInfo.circleStrokeStyle; // 圓形線條的顏色
+      editContext.fillStyle = editCircleInfo.circleFillStyle; // 圓形內部的顏色
+
+      // 繪製圓形控制項目
+      for (let i = 0; i < points.length; i++) {
+        const point = points[i];
+
+        editContext.beginPath();
+        editContext.arc(point['x'], point['y'], editCircleInfo.realRadius, 0, 2 * Math.PI, false);
+        editContext.fill();
+        editContext.stroke();
+      }
+
+
+      editContext.lineWidth = "5" // 圓形線條的寬度
+      editContext.strokeStyle = "black"; // 圓形線條的顏色
+
+      editContext.beginPath();
+      editContext.moveTo(points[0]['x'], points[0]['y'])
+      editContext.lineTo(points[0]['x'], points[0]['y'] + 40)
+      editContext.stroke();
+
+    }
+
+    drawBoundRect();
+    drawRect();
+    drawCircle();
+  }
+
+  function initEditCompoent(boundRectInfo) {
+    editCanvas.width = boundRectInfo.naturalWidth;
+    editCanvas.height = boundRectInfo.naturalHeight;
+    rendererEditCompoent(boundRectInfo);
+  }
+
+  function subscribeEditCompoentEvent(editCanvas, boundRectInfo) {
+    let points = boundRectInfo["bigRect"]["point"];
+    let radius = editCircleInfo.realRadius
+    let hold = false;
+    let holdCircleIndex = null;
+
+    // 取得滑鼠座標在canvas當中的原始數值
+    const getRealOffseValue = (event) => {
+      let offsetX = event.offsetX;
+      let offsetY = event.offsetY;
+      let ratio = editCanvas.width / editCanvas.clientWidth;
+
+      offsetX = event.offsetX;
+      offsetY = event.offsetY;
+
+      offsetX = (offsetX * ratio).toFixed(2);
+      offsetY = (offsetY * ratio).toFixed(2);
+
+      return { offsetX: offsetX, offsetY: offsetY };
+    }
+
+    // 判斷當前滑鼠所在位置是不是位於任一一個圓形控制鈕當中
+    const getIsOffsetValeInCircle = (offsetX, offsetY, points, radius) => {
+      let inCircle = false, inCircleIndex = null;
+
+      for (let i = 0; i < points.length; i++) {
+        const point = points[i];
+
+        const distance = Math.sqrt(Math.pow(offsetX - point['x'], 2) + Math.pow(offsetY - point['y'], 2))
+
+        if (distance < radius) {
+
+
+          inCircleIndex = i;
+          inCircle = true;
+        }
+
+      }
+
+      return { inCircle: inCircle, inCircleIndex: inCircleIndex };
+    }
+
+    // 移動圓形控制鈕後要刷新座標點的位置
+    const updateOffsetValueToBoundInfo = (newX, newY, index, points) => {
+      points[index].x = parseFloat(newX);
+      points[index].y = parseFloat(newY);
+    }
+
+    editCanvas.onmousedown = (event) => {
+      let { offsetX: offsetX, offsetY: offsetY } = getRealOffseValue(event);
+      let { inCircle: inCircle, inCircleIndex: inCircleIndex } = getIsOffsetValeInCircle(offsetX, offsetY, points, radius);
+      if (inCircle === true) {
+        pauseCanvas = true;
+        holdCircleIndex = inCircleIndex;
+        editCanvas.style.cursor = "pointer";
+        hold = true;
+      }
+    }
+
+    editCanvas.onmousemove = (event) => {
+      let { offsetX: offsetX, offsetY: offsetY } = getRealOffseValue(event);
+      let { inCircle: inCircle } = getIsOffsetValeInCircle(offsetX, offsetY, points, radius);
+
+      if (inCircle) {
+        editCanvas.style.cursor = "pointer";
+      } else {
+        editCanvas.style.cursor = "default";
+      }
+
+      if (hold) {
+        pauseCanvas = true;
+        updateOffsetValueToBoundInfo(offsetX, offsetY, holdCircleIndex, boundRectInfo["bigRect"]["point"]);
+        rendererEditCompoent(boundRectInfo);
+      }
+
+    }
+
+    editCanvas.onmouseup = (event) => {
+      hold = false;
+      if (pauseCanvas === true) {
+        canvasStart();
+      }
+      editCanvas.style.cursor = "default";
+    }
+
+    editCanvas.onmouseleave = (event) => {
+      hold = false;
+      if (pauseCanvas === true) {
+        canvasStart();
+      }
+      editCanvas.style.cursor = "default";
+    }
+
+  }
+
 
   initCamera().then(() => {
     canvasStart();
   }).catch(err => console.log(err));
 
   snapShot.onclick = () => {
+    // 原始圖片的canvas
     const saveDst = new cv.Mat(videoHeight, videoWidth, cv.CV_8UC4);
+
     src.copyTo(saveDst);
 
-    rotateImageDst(saveDst)
+    rotateDst(saveDst);
 
-    //把截圖後需要處理的資料數據存下來
-    saveBoundRectInfo = boundRectInfo;
-    saveBoundRectInfo["dst"] = saveDst;
-    appendCanvasEdit(saveDst, saveBoundRectInfo)
+    cv.imshow('saveCanvas', saveDst);
+
+    boundRectInfo.naturalWidth = saveDst['cols'];
+    boundRectInfo.naturalHeight = saveDst['rows'];
+    console.log(boundRectInfo)
+    // rect data
+    boundRectInfo = Object.assign({}, boundRectInfo);
+    // save backup rect data
+    saveBoundRectInfo = JSON.parse(JSON.stringify(boundRectInfo));
+
+    initEditCompoent(boundRectInfo);
+    subscribeEditCompoentEvent(editCanvas, boundRectInfo);
+  }
+
+  reset.onclick = () => {
+    boundRectInfo = JSON.parse(JSON.stringify(saveBoundRectInfo));;
+
+    initEditCompoent(boundRectInfo);
+    subscribeEditCompoentEvent(editCanvas, boundRectInfo);
   }
 
   rotate.onclick = () => {

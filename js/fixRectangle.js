@@ -367,12 +367,10 @@ function detectionDocument(dst, drawDst, videoWidth, videoHeight) {
       { x: 0, y: borderRect.height }
     ]
 
-
     hierarchyArr = [];
     contours.delete();
     hierarchy.delete();
     return framePointXY;
-    return [];
   }
 
 }

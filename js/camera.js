@@ -81,7 +81,7 @@ class ControllerCamera {
 	async getStream(deviceId, fps) {
 		let constraints;
 
-		if (!fps) fps = 24;
+		if (!fps) fps = 30;
 
 		if (deviceId) {
 			this.currentDeviceId = deviceId
@@ -112,7 +112,6 @@ class ControllerCamera {
 			};
 		}
 
-		console.log(this.webcam)
 
 		this.webcam.width = this.videoWidth;
 		this.webcam.height = this.videoHeight;
@@ -126,8 +125,6 @@ class ControllerCamera {
 		// 	}
 		// 	console.log(constraints);
 		// });
-
-		console.log(constraints)
 
 		const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
 
