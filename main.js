@@ -315,15 +315,6 @@ window.addEventListener("load", () => {
         editContext.stroke();
       }
 
-
-      editContext.lineWidth = "5" // 圓形線條的寬度
-      editContext.strokeStyle = "black"; // 圓形線條的顏色
-
-      editContext.beginPath();
-      editContext.moveTo(points[0]['x'], points[0]['y'])
-      editContext.lineTo(points[0]['x'], points[0]['y'] + 40)
-      editContext.stroke();
-
     }
 
     drawBoundRect();
