@@ -1,6 +1,6 @@
 
-import { detectionDocument } from "./js/fixRectangle.js";
 import { ControllerCamera } from "./js/camera.js";
+import { detectionDocument } from "./js/fixRectangle.js";
 window.addEventListener("load", () => {
   const videoWidth = 1280;
   const videoHeight = 720;
