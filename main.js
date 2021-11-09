@@ -6,29 +6,32 @@ window.addEventListener("load", () => {
   const videoHeight = 720;
   const streamVideo = document.getElementById("streamVideo");
   const editCanvas = document.getElementById("editCanvas");
+  const saveCanvas = document.getElementById("saveCanvas");
+  const fixCanvas = document.getElementById("fixCanvas");
   const editContext = editCanvas.getContext("2d");
-
   const snapShot = document.getElementById("snapShot");
   const rotate = document.getElementById("rotate");
   const correction = document.getElementById("correction");
   const reset = document.getElementById("reset")
-
   const CAMERA = new ControllerCamera(streamVideo, videoWidth, videoHeight);
 
-  let cap = null;
-  let src = null;
-  let dst = null;
-  let drawDst = null;
-  let cleanDst = null;
   let degree = 0;
   let pauseCanvas = false;
-  let boundRectInfo = {};
-  let saveBoundRectInfo = {};
-  let backupBoundRectInfo = {};
-  let editCircleInfo = {
-    radius: 37,
+
+  let cvMat = {
+    cap: null,
+    srcDst: null,
+    calcDst: null,
+    drawDst: null
+  }
+  let boundRectData = {
+    refreshBoundRectInfo: {},
+    saveBoundRectInfo: {},
+    backupBoundRectInfo: {}
+  }
+  let circleCompoentInfo = {
+    radius: 40,
     lineWidth: 1,
-    realRadius: 40,
     lineStrokeStyle: "blue",
     circleStrokeStyle: "rgba(255, 255, 255, 0.5)",
     circleFillStyle: "rgba(255, 255, 255, 0.7)"
@@ -89,7 +92,6 @@ window.addEventListener("load", () => {
   }
 
   function drawBoundRectangle(dst, boundRectInfo) {
-
     let red = new cv.Scalar(255, 0, 50, 255);
     let green = new cv.Scalar(50, 255, 0, 255);
 
@@ -121,63 +123,62 @@ window.addEventListener("load", () => {
   }
 
   function canvasStart() {
-    if (cap) cap = null;
-    if (src) src.delete()
-    if (dst) dst.delete()
-    if (drawDst) drawDst.delete()
-    if (cleanDst) cleanDst.delete()
-    if (window.processVideoCanvasID) clearTimeout(window.processVideoCanvasID);
+    if (cvMat.cap) cvMat.cap = null;
+    if (cvMat.srcDst) cvMat.srcDst.delete();
+    if (cvMat.calcDst) cvMat.calcDst.delete();
+    if (cvMat.drawDst) cvMat.drawDst.delete();
 
     let canvasWidth = videoWidth;
     let canvasHeight = videoHeight;
-    pauseCanvas = false;
 
     if (canvasHeight / canvasWidth == 0.5625) {
-      if (canvasWidth < 1280)
+      if (canvasWidth < 1280) {
         canvasWidth = 1280
-      if (canvasHeight < 720)
+      }
+      if (canvasHeight < 720) {
         canvasHeight = 720
+      }
     }
 
     if (canvasHeight / canvasWidth == 0.75) {
-      if (canvasWidth < 1024)
+      if (canvasWidth < 1024) {
         canvasWidth = 1024
-      if (canvasHeight < 768)
+      }
+      if (canvasHeight < 768) {
         canvasHeight = 768
+      }
     }
 
     streamVideo.width = canvasWidth;
     streamVideo.height = canvasHeight;
+    pauseCanvas = false;
 
     const showCanvas = function () {
+      cvMat.cap = new cv.VideoCapture(streamVideo); // 攝像頭
+      cvMat.srcDst = new cv.Mat(canvasHeight, canvasWidth, cv.CV_8UC4); // 攝像頭資料
+      cvMat.calcDst = new cv.Mat(canvasHeight, canvasWidth, cv.CV_8UC1); // 計算畫面資料
+      cvMat.drawDst = new cv.Mat(canvasHeight, canvasWidth, cv.CV_8UC4, new cv.Scalar(255, 0, 255, 0)); // 繪製畫面資料
 
-      cap = new cv.VideoCapture(streamVideo);
-      src = new cv.Mat(canvasHeight, canvasWidth, cv.CV_8UC4);
-      dst = new cv.Mat(canvasHeight, canvasWidth, cv.CV_8UC1);
-      drawDst = new cv.Mat(canvasHeight, canvasWidth, cv.CV_8UC4, new cv.Scalar(255, 0, 255, 0));
-      cleanDst = new cv.Mat(canvasHeight, canvasWidth, cv.CV_8UC4, new cv.Scalar(255, 0, 255, 0));
       const drawCanvas = function () {
-
         const begin = Date.now();
 
-        cap.read(src);
+        cvMat.cap.read(cvMat.srcDst); //
 
-        src.copyTo(drawDst); // 繪製全新的 drawDst
+        cvMat.srcDst.copyTo(cvMat.drawDst); // 繪製全新的 drawDst
 
-        cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY);
+        cv.cvtColor(cvMat.srcDst, cvMat.calcDst, cv.COLOR_RGBA2GRAY);
 
-        rotateDst(dst);
+        rotateDst(cvMat.calcDst);
 
-        rotateDst(drawDst);
+        rotateDst(cvMat.drawDst);
 
         if (degree === 90 || degree === 270) {
-          boundRectInfo = detectionDocument(dst, drawDst, videoHeight, videoWidth)
+          boundRectData.refreshBoundRectInfo = detectionDocument(cvMat.calcDst, cvMat.drawDst, videoHeight, videoWidth)
         } else {
-          boundRectInfo = detectionDocument(dst, drawDst, videoWidth, videoHeight)
+          boundRectData.refreshBoundRectInfo = detectionDocument(cvMat.calcDst, cvMat.drawDst, videoWidth, videoHeight)
         }
 
-        cv.imshow('drawOutput', drawDst);
-
+        cv.imshow('drawOutput', cvMat.drawDst);
 
         if (pauseCanvas === true) {
           clearTimeout(window.processVideoCanvasID);
@@ -191,7 +192,6 @@ window.addEventListener("load", () => {
             drawCanvas();
           }, timer)
         }
-
       }
 
       drawCanvas();
@@ -251,10 +251,11 @@ window.addEventListener("load", () => {
   // 繪製圓形控制項目和線條
   function rendererEditCompoent(boundRectInfo) {
 
+    const radius = (circleCompoentInfo.radius + (circleCompoentInfo.lineWidth / 2));
+
     editContext.clearRect(0, 0, editCanvas.width, editCanvas.height);
 
     boundRectInfo = calcBoundRectSize(boundRectInfo);
-    console.log(boundRectInfo);
 
     const drawBoundRect = () => {
       // 畫最小外接矩形
@@ -300,16 +301,16 @@ window.addEventListener("load", () => {
       // 繪製圓形控制項目
       const points = boundRectInfo["bigRect"]["point"];
 
-      editContext.lineWidth = editCircleInfo.lineWidth; // 圓形線條的寬度
-      editContext.strokeStyle = editCircleInfo.circleStrokeStyle; // 圓形線條的顏色
-      editContext.fillStyle = editCircleInfo.circleFillStyle; // 圓形內部的顏色
+      editContext.lineWidth = circleCompoentInfo.lineWidth; // 圓形線條的寬度
+      editContext.strokeStyle = circleCompoentInfo.circleStrokeStyle; // 圓形線條的顏色
+      editContext.fillStyle = circleCompoentInfo.circleFillStyle; // 圓形內部的顏色
 
       // 繪製圓形控制項目
       for (let i = 0; i < points.length; i++) {
         const point = points[i];
 
         editContext.beginPath();
-        editContext.arc(point['x'], point['y'], editCircleInfo.realRadius, 0, 2 * Math.PI, false);
+        editContext.arc(point['x'], point['y'], radius, 0, 2 * Math.PI, false);
         editContext.fill();
         editContext.stroke();
       }
@@ -340,7 +341,7 @@ window.addEventListener("load", () => {
   // 註冊圓形控制項目的動作
   function subscribeEditCompoentEvent(editCanvas, boundRectInfo) {
 
-    let radius = editCircleInfo.realRadius
+    const radius = (circleCompoentInfo.radius + (circleCompoentInfo.lineWidth / 2));
     let hold = false;
     let holdCircleIndex = null;
 
@@ -369,7 +370,6 @@ window.addEventListener("load", () => {
           inCircleIndex = i;
         }
       }
-
       return { inCircle: inCircle, inCircleIndex: inCircleIndex };
     }
 
@@ -431,7 +431,9 @@ window.addEventListener("load", () => {
 
   }
 
-  function documentWarpPerspective(srcDst, cutDst, fixDst, boundRectInfo) {
+
+  // 將方框內的圖片裁切出來然後做透視變換
+  function warpPerspective(srcDst, cutDst, fixDst, boundRectInfo) {
     const rect = boundRectInfo["bigBoundingRect"];
     const points = boundRectInfo["bigRect"]["point"];
     let cutPoints = [];
@@ -468,16 +470,14 @@ window.addEventListener("load", () => {
       cv.BORDER_CONSTANT,
       new cv.Scalar()
     );
-
   }
 
-  function documentScan(boundRectInfo) {
-    const saveCanvas = document.getElementById("saveCanvas");
-    const fixCanvas = document.getElementById("fixCanvas");
+  // 掃描文件
+  function documentScanner(boundRectInfo) {
     const rect = boundRectInfo["bigBoundingRect"];
-    const srcDst = new cv.Mat(videoHeight, videoWidth, cv.CV_8UC4);
-    const cutDst = new cv.Mat();
-    const fixDst = new cv.Mat();
+    const srcDst = new cv.Mat(videoHeight, videoWidth, cv.CV_8UC4); // 原圖
+    const cutDst = new cv.Mat(); // 裁切後的圖
+    const fixDst = new cv.Mat(); // 裁切後做透視變換的圖，也就是結果
 
     let saveDst = cv.imread(saveCanvas);
 
@@ -486,7 +486,7 @@ window.addEventListener("load", () => {
 
     saveDst.copyTo(srcDst);
 
-    documentWarpPerspective(srcDst, cutDst, fixDst, boundRectInfo)
+    warpPerspective(srcDst, cutDst, fixDst, boundRectInfo)
 
     cv.imshow('fixCanvas', fixDst);
 
@@ -494,39 +494,34 @@ window.addEventListener("load", () => {
     fixDst.delete();
   }
 
-
-  initCamera().then(() => {
-    canvasStart();
-  }).catch(err => console.log(err));
-
   snapShot.onclick = () => {
     // 原始圖片的canvas
     const saveDst = new cv.Mat(videoHeight, videoWidth, cv.CV_8UC4);
 
-    src.copyTo(saveDst);
+    cvMat.srcDst.copyTo(saveDst);
 
     rotateDst(saveDst);
 
     cv.imshow('saveCanvas', saveDst);
 
-    boundRectInfo.naturalWidth = saveDst['cols'];
-    boundRectInfo.naturalHeight = saveDst['rows'];
+    boundRectData.refreshBoundRectInfo.naturalWidth = saveDst['cols'];
+    boundRectData.refreshBoundRectInfo.naturalHeight = saveDst['rows'];
 
     // 儲存辨識結果資料
-    saveBoundRectInfo = Object.assign({}, boundRectInfo);
+    boundRectData.saveBoundRectInfo = Object.assign({}, boundRectData.refreshBoundRectInfo);
     // 備份辨識結果資料
-    backupBoundRectInfo = JSON.parse(JSON.stringify(saveBoundRectInfo));
+    boundRectData.backupBoundRectInfo = JSON.parse(JSON.stringify(boundRectData.saveBoundRectInfo));
 
-    initEditCompoent(saveBoundRectInfo);
-    subscribeEditCompoentEvent(editCanvas, saveBoundRectInfo);
+    initEditCompoent(boundRectData.saveBoundRectInfo);
+    subscribeEditCompoentEvent(editCanvas, boundRectData.saveBoundRectInfo);
   }
 
   reset.onclick = () => {
     // 從備份資料還原
-    saveBoundRectInfo = JSON.parse(JSON.stringify(backupBoundRectInfo));;
+    boundRectData.saveBoundRectInfo = JSON.parse(JSON.stringify(boundRectData.backupBoundRectInfo));;
 
-    initEditCompoent(saveBoundRectInfo);
-    subscribeEditCompoentEvent(editCanvas, saveBoundRectInfo);
+    initEditCompoent(boundRectData.saveBoundRectInfo);
+    subscribeEditCompoentEvent(editCanvas, boundRectData.saveBoundRectInfo);
   }
 
   rotate.onclick = () => {
@@ -537,8 +532,11 @@ window.addEventListener("load", () => {
   }
 
   correction.onclick = () => {
-    document.getElementById("outputSection").style.display = "flex";
-    documentScan(saveBoundRectInfo, "saveCanvas", "fixCanvas");
+    documentScanner(boundRectData.saveBoundRectInfo, "saveCanvas", "fixCanvas");
   }
+
+  initCamera().then(() => {
+    canvasStart();
+  }).catch(err => console.log(err));
 
 });

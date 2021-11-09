@@ -1,9 +1,8 @@
 
-# 前端文件掃描器 Javascript Document Scanner (製作中)
+# 前端文件掃描器 Javascript Document Scanner
 
-使用opencv.js辨別文件區域，將白紙的區域提取出來，需要有一個控制框，當萬一辨識有誤時，可以讓使用者手動框選要提取的區域，最後可以正確將白紙提取出來。
+使用 opencv.js 辨別文件區域，將白紙的區域提取出來，將畫面提取出來時會有一個控制框，當萬一辨識有誤時，可以讓使用者手動框選要做變換的區域，最後可以將白紙掃描出來。
 
+Demo 參考影片
 
-目前的樣子可參考(錄影的關係再加上上傳到youtube有點糊掉)
-
-[https://youtu.be/NxabG-VZS9g](https://youtu.be/NxabG-VZS9g) 
+[https://youtu.be/EqNcp5zcem0](https://youtu.be/EqNcp5zcem0) 
