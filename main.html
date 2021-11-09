@@ -8,16 +8,55 @@
   <title>ScanDoc</title>
 </head>
 <style>
-  #editSection {
-    width: 80%;
-    height: 50vh;
-    display: flex;
+  #previewSection {
+    width: 90%;
+    height: 45vh;
     margin: 10px auto;
-    position: relative;
+    display: flex;
+    justify-content: space-evenly;
   }
 
-  #editSection canvas {
+  #previewSection .previewDiv {
+    width: calc(50% - 12px);
+    height: 100%;
+    display: flex;
+    float: left;
+    border: 3px solid black;
+  }
+
+  #streamVideo,
+  #drawOutput,
+  #videoOutput {
     margin: auto;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  #resultSection {
+    width: 90%;
+    height: 45vh;
+    display: flex;
+    margin: 8px auto;
+    position: relative;
+    justify-content: space-evenly;
+  }
+
+  #editSection,
+  #outputSection {
+    width: calc(50% - 12px);
+    height: 100%;
+    display: flex;
+    float: left;
+    position: relative;
+    align-items: center;
+    border: 3px solid black;
+  }
+
+  #editSection canvas,
+  #outputSection canvas {
+    margin: 8px auto;
     width: auto;
     height: auto;
     max-width: 100%;
@@ -28,20 +67,13 @@
     left: 50%;
     transform: translateX(-50%);
   }
-  #streamVideo,#drawOutput,#videoOutput{
-    margin: auto;
-    width: auto;
-    height: auto;
-    max-width: 100%;
-    max-height: 100%;
-  }
-
 </style>
 
 <body>
-  <div style="width: 80%;height:3vh;margin:10px auto;">
-    <button id="snapShot">截圖</button>
+
+  <div style="width: 80%;height:4vh;margin:8px auto;">
     <button id="rotate">旋轉</button>
+    <button id="snapShot">截圖</button>
     <button id="correction">校正</button>
     <button id="reset">重置</button>
 
@@ -51,36 +83,45 @@
       <option value="B4">A4</option>
     </select>
   </div>
-  <div style="width:80%;height:40vh;margin:auto">
 
-    <div style="width: 50%;height: 100%;display: flex;float: left;">
+  <div id="previewSection">
+
+    <div class="previewDiv" style="display: flex;">
       <video id="streamVideo">
 
       </video>
     </div>
 
-    <div style="width: 50%;height: 100%;display: none;float: left;">
-      <canvas id="videoOutput" >
+    <div class="previewDiv" style="display: none;">
+      <canvas id="videoOutput">
 
       </canvas>
     </div>
 
-    <div style="width: 50%;height: 100%;display: flex;float: left;">
-      <canvas id="drawOutput" >
+    <div class="previewDiv" style="display: flex;">
+      <canvas id="drawOutput">
 
       </canvas>
     </div>
 
   </div>
 
-  <div id="editSection">
-    <canvas id="saveCanvas" style="z-index: 100;">
+  <div id="resultSection">
+    <div id="editSection">
+      <canvas id="saveCanvas" style="z-index: 100;">
 
-    </canvas>
-    <canvas id="editCanvas" style="z-index: 200;">
+      </canvas>
+      <canvas id="editCanvas" style="z-index: 200;">
 
-    </canvas>
+      </canvas>
+    </div>
+    <div id="outputSection">
+      <canvas id="fixCanvas" style="z-index: 100;">
+
+      </canvas>
+    </div>
   </div>
+
 
 </body>
 

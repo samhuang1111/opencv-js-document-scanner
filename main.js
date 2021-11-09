@@ -24,6 +24,7 @@ window.addEventListener("load", () => {
   let pauseCanvas = false;
   let boundRectInfo = {};
   let saveBoundRectInfo = {};
+  let backupBoundRectInfo = {};
   let editCircleInfo = {
     radius: 37,
     lineWidth: 1,
@@ -199,13 +200,61 @@ window.addEventListener("load", () => {
     showCanvas();
   }
 
-  function calcBoundRectData(boundRectInfo){
-    
+  function calcBoundRectSize(boundRectInfo) {
+    let points = boundRectInfo["bigRect"]["point"];
+    let totalX = [], totalY = [], centerX = 0, centerY = 0;
+    for (let i = 0; i < points.length; i++) {
+      const point = points[i];
+      centerX += point['x'];
+      centerY += point['y'];
+      totalX.push(point['x']);
+      totalY.push(point['y']);
+    }
+
+    //最小外接矩形左上最小的x y座標
+    let leftTopX = Math.min(...totalX);
+    let leftTopY = Math.min(...totalY);
+    //最小外接矩形右下最大的x y座標
+    let rightBottomX = Math.max(...totalX);
+    let rightBottomY = Math.max(...totalY);
+    //最小外接矩形長寬
+    let width = rightBottomX - leftTopX;
+    let height = rightBottomY - leftTopY;
+    centerX = centerX / points.length;
+    centerY = centerY / points.length;
+
+    // 計算角度
+    const newPoints = points.map(({ x, y }) => {
+      return {
+        x, y, angle: Math.atan2(y - centerY, x - centerX) * 180 / Math.PI
+      }
+    });
+
+    // 依照角度排序
+    newPoints.sort((a, b) => a.angle - b.angle)
+
+    boundRectInfo["bigBoundingRect"] = {
+      x: leftTopX,
+      y: leftTopY,
+      width: width,
+      height: height
+    }
+    boundRectInfo["bigRect"]["center"] = {
+      x: centerX,
+      y: centerY
+    }
+    boundRectInfo["bigRect"]["point"] = newPoints;
+
+    return boundRectInfo;
   }
 
+  // 繪製圓形控制項目和線條
   function rendererEditCompoent(boundRectInfo) {
 
     editContext.clearRect(0, 0, editCanvas.width, editCanvas.height);
+
+    boundRectInfo = calcBoundRectSize(boundRectInfo);
+    console.log(boundRectInfo);
 
     const drawBoundRect = () => {
       // 畫最小外接矩形
@@ -281,26 +330,25 @@ window.addEventListener("load", () => {
     drawCircle();
   }
 
+  // 初始化繪製圓形控制項目和線條
   function initEditCompoent(boundRectInfo) {
     editCanvas.width = boundRectInfo.naturalWidth;
     editCanvas.height = boundRectInfo.naturalHeight;
     rendererEditCompoent(boundRectInfo);
   }
 
+  // 註冊圓形控制項目的動作
   function subscribeEditCompoentEvent(editCanvas, boundRectInfo) {
-    let points = boundRectInfo["bigRect"]["point"];
+
     let radius = editCircleInfo.realRadius
     let hold = false;
     let holdCircleIndex = null;
 
     // 取得滑鼠座標在canvas當中的原始數值
     const getRealOffseValue = (event) => {
+      let ratio = editCanvas.width / editCanvas.clientWidth;
       let offsetX = event.offsetX;
       let offsetY = event.offsetY;
-      let ratio = editCanvas.width / editCanvas.clientWidth;
-
-      offsetX = event.offsetX;
-      offsetY = event.offsetY;
 
       offsetX = (offsetX * ratio).toFixed(2);
       offsetY = (offsetY * ratio).toFixed(2);
@@ -309,35 +357,31 @@ window.addEventListener("load", () => {
     }
 
     // 判斷當前滑鼠所在位置是不是位於任一一個圓形控制鈕當中
-    const getIsOffsetValeInCircle = (offsetX, offsetY, points, radius) => {
+    const getIsOffsetValeInCircle = (offsetX, offsetY, boundRectInfo, radius) => {
       let inCircle = false, inCircleIndex = null;
-
+      let points = boundRectInfo["bigRect"]["point"];
       for (let i = 0; i < points.length; i++) {
         const point = points[i];
-
+        // 滑鼠的點擊位置是否在圓形之內
         const distance = Math.sqrt(Math.pow(offsetX - point['x'], 2) + Math.pow(offsetY - point['y'], 2))
-
         if (distance < radius) {
-
-
-          inCircleIndex = i;
           inCircle = true;
+          inCircleIndex = i;
         }
-
       }
 
       return { inCircle: inCircle, inCircleIndex: inCircleIndex };
     }
 
     // 移動圓形控制鈕後要刷新座標點的位置
-    const updateOffsetValueToBoundInfo = (newX, newY, index, points) => {
-      points[index].x = parseFloat(newX);
-      points[index].y = parseFloat(newY);
+    const updateOffsetValueToBoundInfo = (newX, newY, index, boundRectInfo) => {
+      boundRectInfo["bigRect"]["point"][index].x = parseFloat(newX);
+      boundRectInfo["bigRect"]["point"][index].y = parseFloat(newY);
     }
 
     editCanvas.onmousedown = (event) => {
       let { offsetX: offsetX, offsetY: offsetY } = getRealOffseValue(event);
-      let { inCircle: inCircle, inCircleIndex: inCircleIndex } = getIsOffsetValeInCircle(offsetX, offsetY, points, radius);
+      let { inCircle: inCircle, inCircleIndex: inCircleIndex } = getIsOffsetValeInCircle(offsetX, offsetY, boundRectInfo, radius);
       if (inCircle === true) {
         pauseCanvas = true;
         holdCircleIndex = inCircleIndex;
@@ -348,7 +392,7 @@ window.addEventListener("load", () => {
 
     editCanvas.onmousemove = (event) => {
       let { offsetX: offsetX, offsetY: offsetY } = getRealOffseValue(event);
-      let { inCircle: inCircle } = getIsOffsetValeInCircle(offsetX, offsetY, points, radius);
+      let { inCircle: inCircle } = getIsOffsetValeInCircle(offsetX, offsetY, boundRectInfo, radius);
 
       if (inCircle) {
         editCanvas.style.cursor = "pointer";
@@ -358,17 +402,22 @@ window.addEventListener("load", () => {
 
       if (hold) {
         pauseCanvas = true;
-        updateOffsetValueToBoundInfo(offsetX, offsetY, holdCircleIndex, boundRectInfo["bigRect"]["point"]);
+        updateOffsetValueToBoundInfo(offsetX, offsetY, holdCircleIndex, boundRectInfo);
         rendererEditCompoent(boundRectInfo);
       }
 
     }
 
     editCanvas.onmouseup = (event) => {
-      hold = false;
       if (pauseCanvas === true) {
         canvasStart();
       }
+      if (hold === true) {
+        let { offsetX: offsetX, offsetY: offsetY } = getRealOffseValue(event);
+        updateOffsetValueToBoundInfo(offsetX, offsetY, holdCircleIndex, boundRectInfo);
+        rendererEditCompoent(boundRectInfo);
+      }
+      hold = false;
       editCanvas.style.cursor = "default";
     }
 
@@ -380,6 +429,69 @@ window.addEventListener("load", () => {
       editCanvas.style.cursor = "default";
     }
 
+  }
+
+  function documentWarpPerspective(srcDst, cutDst, fixDst, boundRectInfo) {
+    const rect = boundRectInfo["bigBoundingRect"];
+    const points = boundRectInfo["bigRect"]["point"];
+    let cutPoints = [];
+
+    cutDst = srcDst.roi(rect);
+
+    for (let index = 0; index < points.length; index++) {
+      //小圖中的四個頂點
+      cutPoints.push(points[index]["x"] - rect.x);
+      cutPoints.push(points[index]["y"] - rect.y);
+    }
+
+    const dsize = new cv.Size(rect.width, rect.height);
+
+    const srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, cutPoints);
+    const dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+      0,
+      0,
+      rect.width,
+      0,
+      rect.width,
+      rect.height,
+      0,
+      rect.height,
+    ]);
+
+    const M = cv.getPerspectiveTransform(srcTri, dstTri);
+    cv.warpPerspective(
+      cutDst,
+      fixDst,
+      M,
+      dsize,
+      cv.INTER_LINEAR,
+      cv.BORDER_CONSTANT,
+      new cv.Scalar()
+    );
+
+  }
+
+  function documentScan(boundRectInfo) {
+    const saveCanvas = document.getElementById("saveCanvas");
+    const fixCanvas = document.getElementById("fixCanvas");
+    const rect = boundRectInfo["bigBoundingRect"];
+    const srcDst = new cv.Mat(videoHeight, videoWidth, cv.CV_8UC4);
+    const cutDst = new cv.Mat();
+    const fixDst = new cv.Mat();
+
+    let saveDst = cv.imread(saveCanvas);
+
+    fixCanvas.width = rect.width;
+    fixCanvas.height = rect.height;
+
+    saveDst.copyTo(srcDst);
+
+    documentWarpPerspective(srcDst, cutDst, fixDst, boundRectInfo)
+
+    cv.imshow('fixCanvas', fixDst);
+
+    cutDst.delete();
+    fixDst.delete();
   }
 
 
@@ -399,21 +511,22 @@ window.addEventListener("load", () => {
 
     boundRectInfo.naturalWidth = saveDst['cols'];
     boundRectInfo.naturalHeight = saveDst['rows'];
-    console.log(boundRectInfo)
-    // rect data
-    boundRectInfo = Object.assign({}, boundRectInfo);
-    // save backup rect data
-    saveBoundRectInfo = JSON.parse(JSON.stringify(boundRectInfo));
 
-    initEditCompoent(boundRectInfo);
-    subscribeEditCompoentEvent(editCanvas, boundRectInfo);
+    // 儲存辨識結果資料
+    saveBoundRectInfo = Object.assign({}, boundRectInfo);
+    // 備份辨識結果資料
+    backupBoundRectInfo = JSON.parse(JSON.stringify(saveBoundRectInfo));
+
+    initEditCompoent(saveBoundRectInfo);
+    subscribeEditCompoentEvent(editCanvas, saveBoundRectInfo);
   }
 
   reset.onclick = () => {
-    boundRectInfo = JSON.parse(JSON.stringify(saveBoundRectInfo));;
+    // 從備份資料還原
+    saveBoundRectInfo = JSON.parse(JSON.stringify(backupBoundRectInfo));;
 
-    initEditCompoent(boundRectInfo);
-    subscribeEditCompoentEvent(editCanvas, boundRectInfo);
+    initEditCompoent(saveBoundRectInfo);
+    subscribeEditCompoentEvent(editCanvas, saveBoundRectInfo);
   }
 
   rotate.onclick = () => {
@@ -424,8 +537,8 @@ window.addEventListener("load", () => {
   }
 
   correction.onclick = () => {
-
-
+    document.getElementById("outputSection").style.display = "flex";
+    documentScan(saveBoundRectInfo, "saveCanvas", "fixCanvas");
   }
 
 });
