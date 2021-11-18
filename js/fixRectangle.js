@@ -40,12 +40,12 @@ function getSortedPoint(point, contours) {
   return { point: point, center: center };
 }
 
-function detectionRectangle(dst, drawDst, videoWidth, videoHeight) {
+function detectionSamllRectangle(dst, drawDst, videoWidth, videoHeight) {
   let framePointXY = [];
 
-  cv.adaptiveThreshold(dst, dst, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 17, 9)
+  cv.adaptiveThreshold(dst, dst, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 11, 5)
 
-  let erodeKernelSize = new cv.Size(3, 3);
+  let erodeKernelSize = new cv.Size(2, 2);
   let kernel = cv.getStructuringElement(cv.MORPH_RECT, erodeKernelSize)
   cv.erode(dst, dst, kernel);
 
@@ -58,211 +58,115 @@ function detectionRectangle(dst, drawDst, videoWidth, videoHeight) {
   for (let i = 0; i < contours.size(); i++) {
 
     const ci = contours.get(i)
-    let peri1 = cv.arcLength(ci, true);
-    let peri2 = 0.01 * peri1;
-    let approx = new cv.Mat();
+    const peri1 = cv.arcLength(ci, true);
+    const peri2 = 0.01 * peri1;
+    const distance1 = 2.0;
+    const distance2 = 30.0;
+    const approx = new cv.Mat();
 
     cv.approxPolyDP(ci, approx, peri2, true);
 
-    let t1 = 3.0
-    let t2 = 25.0
+    const filterContours = () => {
+      let isBigContours = false;
+      let isSmallContours = false;
+      let maxArea = 0;
+      let totalArea = 0;
+      if (approx.rows == 4 && peri2 > distance1 && peri2 < distance2) {
 
-    let filterContours = () => {
+        isBigContours = (
+          hierarchyArr[i][0] > 0 &&
+          hierarchyArr[i][1] > 0 &&
+          hierarchyArr[i][3] > 0 &&
+          hierarchyArr[i][2] == -1 &&
+          peri2 > 10
+        );
 
-      if (approx.rows == 4 && peri2 > t1 && peri2 < t2) {
+        isSmallContours = (hierarchyArr[i][3] == -1 && hierarchyArr[i][0] != -1);
+      }
 
-        let maxArea = 0;
-        let totalArea = 0;
+      //提取大的輪廓
+      if (false) {
+        let boundingRect = cv.boundingRect(ci)
+        if (boundingRect.width > videoWidth * 0.15 && boundingRect.height > videoWidth * 0.15) {
 
-        let bigContoursJudge =
-          hierarchyArr[i][0] > 0 && hierarchyArr[i][1] > 0 &&
-          hierarchyArr[i][3] > 0 && hierarchyArr[i][2] == -1 &&
-          peri2 > 10;
-
-        let smallContoursJudge = hierarchyArr[i][3] == -1 && hierarchyArr[i][0] != -1;
-
-        //提取大的輪廓
-        if (bigContoursJudge) {
-          let boundingRect = cv.boundingRect(ci)
-          if (boundingRect.width > videoWidth * 0.15 && boundingRect.height > videoWidth * 0.15) {
-
-            let point_XY = [];
-            let Area = cv.contourArea(ci);
-            if (maxArea < Area) {
-              maxArea = Area;
-            }
-
-            for (let i = 0; i < approx.data32S.length; i += 2) {
-              let cnt = []
-              cnt['x'] = approx.data32S[i]
-              cnt['y'] = approx.data32S[i + 1]
-              point_XY.push(cnt)
-              cnt = []
-            }
-
-            let { point: sortEndPoint, center: center } = getSortedPoint(point_XY, ci);
-            framePointXY['bigRect'] = sortEndPoint;
-            framePointXY['maxArea'] = maxArea;
-            framePointXY['bigBoundingRect'] = boundingRect;
-            // cv.drawContours(drawDst, contours, i, new cv.Scalar(100, 100, 255, 255), 2, cv.LINE_8, hierarchy, false)
-          }
-        }
-
-        //提取小的輪廓
-        if (smallContoursJudge) {
           let point_XY = [];
+          let Area = cv.contourArea(ci);
+          if (maxArea < Area) {
+            maxArea = Area;
+          }
 
           for (let i = 0; i < approx.data32S.length; i += 2) {
             let cnt = []
             cnt['x'] = approx.data32S[i]
             cnt['y'] = approx.data32S[i + 1]
-
             point_XY.push(cnt)
             cnt = []
           }
 
           let { point: sortEndPoint, center: center } = getSortedPoint(point_XY, ci);
-          let boundingRect = cv.boundingRect(ci)
-          let pointsSorted = {
-            "cntPoint": []
-          }
-
-          // 根據角度排序矩形輪廓的點
-          pointsSorted["cntPoint"] = sortEndPoint;
-
-          //過濾
-          const judge = () => {
-
-            let lock = true;
-            let tempAngle = 0;
-            let tempValue = 500000;
-
-            //太扁的矩形和奇怪形狀的矩形的數據
-            let lineMidPoints = [];
-            for (let index = 0; index < pointsSorted["cntPoint"].length; index++) {
-              if (index != 3) {
-                let temp = {};
-                temp.x = (pointsSorted["cntPoint"][index].x + pointsSorted["cntPoint"][index + 1].x) / 2;
-                temp.y = (pointsSorted["cntPoint"][index].y + pointsSorted["cntPoint"][index + 1].y) / 2;
-
-                let p1 = {
-                  x: pointsSorted["cntPoint"][index].x,
-                  y: pointsSorted["cntPoint"][index].y
-                }
-                let p2 = {
-                  x: pointsSorted["cntPoint"][index + 1].x,
-                  y: pointsSorted["cntPoint"][index + 1].y
-                }
-                let angle = Math.atan2((p1.y - p2.y), (p2.x - p1.x)) //弧度
-                let theta = angle * (180 / Math.PI); //角度  36.86989764584402
-                temp.angle = theta;
-
-                lineMidPoints.push(temp)
-              } else if (index == 3) {
-                let temp = {};
-                temp.x = (pointsSorted["cntPoint"][index].x + pointsSorted["cntPoint"][index - index].x) / 2;
-                temp.y = (pointsSorted["cntPoint"][index].y + pointsSorted["cntPoint"][index - index].y) / 2;
-
-                let p1 = {
-                  x: pointsSorted["cntPoint"][index].x,
-                  y: pointsSorted["cntPoint"][index].y
-                }
-                let p2 = {
-                  x: pointsSorted["cntPoint"][index - index].x,
-                  y: pointsSorted["cntPoint"][index - index].y
-                }
-                let angle = Math.atan2((p1.y - p2.y), (p2.x - p1.x)) //弧度
-                let theta = angle * (180 / Math.PI); //角度  36.86989764584402
-                temp.angle = theta;
-
-                lineMidPoints.push(temp)
-              }
-            }
-
-            for (let index = 0; index < lineMidPoints.length; index++) {
-              let tempVal = 0;
-              tempVal = Math.pow(lineMidPoints[index].x - center.x, 2)
-              tempVal += Math.pow(lineMidPoints[index].y - center.y, 2)
-              tempVal = Math.sqrt(tempVal);
-              if (tempVal < tempValue) {
-                tempValue = tempVal
-              }
-              tempAngle += Math.abs(lineMidPoints[index].angle);
-            }
-
-            // 過濾太扁的矩形
-            if (!(tempValue > 30)) {
-              lock = false;
-            }
-
-            let ratio = boundingRect.height / boundingRect.width
-            if (ratio > 4 || ratio < 0.2) {
-              lock = false
-            }
-
-            // 過濾奇怪形狀的矩形
-            if (!(tempAngle > 350 && tempAngle < 370)) {
-              lock = false;
-            }
-
-            // 過濾邊邊的矩形或是太大的矩形
-            let temp1 = boundingRect.x + boundingRect.width;
-            let temp2 = boundingRect.y + boundingRect.height;
-            if (temp1 == videoWidth || temp2 == videoHeight) {
-              lock = false;
-            }
-
-            //x or y == 0 就濾除
-            //之前是同時等於0才濾除
-            if ((boundingRect.x == 0 || boundingRect.y == 0)) {
-              lock = false;
-            }
-
-            return lock;
-          }
-
-          if (judge()) {
-
-            //let b1 = new cv.Point(boundingRect.x, boundingRect.y);
-            //let b2 = new cv.Point(boundingRect.x + boundingRect.width, boundingRect.y + boundingRect.height);
-            //cv.rectangle(drawDst, b1, b2, new cv.Scalar(0, 255, 0, 255), 1, cv.LINE_AA, 0)
-
-            // cv.drawContours(drawDst, contours, i, new cv.Scalar(100, 100, 255, 255), 2, cv.LINE_AA, hierarchy, false)
-
-            let line = new cv.Mat();
-            cv.fitLine(ci, line, cv.DIST_L2, 0, 0.01, 0.01);
-            let vx = line.data32F[0];
-
-            pointsSorted['cntInfo'] = {}
-            pointsSorted['cntInfo']['center'] = center;
-            pointsSorted['cntInfo']['angle'] = Math.acos(vx) * 180 / Math.PI;
-            pointsSorted['cntInfo']['counter'] = Math.random().toFixed(4);
-            pointsSorted['cntInfo']['boundingRect'] = boundingRect;
-            framePointXY['totalArea'] = totalArea;
-
-            framePointXY.push(pointsSorted);
-          }
-
+          framePointXY['bigRect'] = sortEndPoint;
+          framePointXY['maxArea'] = maxArea;
+          framePointXY['bigBoundingRect'] = boundingRect;
         }
       }
+
+      //提取小的輪廓
+      if (isSmallContours) {
+        let point_XY = [];
+
+        for (let i = 0; i < approx.data32S.length; i += 2) {
+          let cnt = []
+          cnt['x'] = approx.data32S[i]
+          cnt['y'] = approx.data32S[i + 1]
+
+          point_XY.push(cnt)
+          cnt = []
+        }
+
+        let { point: sortEndPoint, center: center } = getSortedPoint(point_XY, ci);
+        let boundingRect = cv.boundingRect(ci)
+        let pointsSorted = {
+          "cntPoint": []
+        }
+
+        // 根據角度排序矩形輪廓的點
+        pointsSorted["cntPoint"] = sortEndPoint;
+
+        let line = new cv.Mat();
+        cv.fitLine(ci, line, cv.DIST_L2, 0, 0.01, 0.01);
+        let vx = line.data32F[0];
+
+        pointsSorted['cntInfo'] = {}
+        pointsSorted['cntInfo']['center'] = center;
+        pointsSorted['cntInfo']['angle'] = Math.acos(vx) * 180 / Math.PI;
+        pointsSorted['cntInfo']['counter'] = Math.random().toFixed(4);
+        pointsSorted['cntInfo']['boundingRect'] = boundingRect;
+        framePointXY['totalArea'] = totalArea;
+
+        framePointXY.push(pointsSorted);
+        cv.drawContours(drawDst, contours, i, new cv.Scalar(0, 255, 50, 255), 2, cv.LINE_AA, hierarchy, false)
+
+      }
+
     }
 
     filterContours();
     ci.delete();
     approx.delete();
   }
-
-  hierarchyArr = [];
   contours.delete();
   hierarchy.delete();
+  hierarchyArr = [];
   return framePointXY;
 }
 
 function detectionDocument(dst, drawDst, videoWidth, videoHeight) {
 
-  let framePointXY = [];
-  framePointXY['bigRect']={};
-  framePointXY['bigRect']['point'] = [];
+  let BoundRectInfo = [];
+  BoundRectInfo['bigRect'] = {};
+  BoundRectInfo['bigRect']['point'] = [];
+  BoundRectInfo["naturalWidth"] = drawDst.cols;
+  BoundRectInfo["naturalHeight"] = drawDst.rows;
   
   // 高斯模糊
   let ksize = new cv.Size(3, 3);
@@ -285,7 +189,6 @@ function detectionDocument(dst, drawDst, videoWidth, videoHeight) {
   let contours = new cv.MatVector();
   let hierarchy = new cv.Mat();
   cv.findContours(dst, contours, hierarchy, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE);
-  let hierarchyArr = getHierarchy(hierarchy)
 
   let maxArea = 0;
   let maxIndex = 0;
@@ -332,13 +235,12 @@ function detectionDocument(dst, drawDst, videoWidth, videoHeight) {
             if (area > maxArea && pointJudge) {
               maxArea = area;
               maxIndex = i;
-              framePointXY['bigBoundingRect'] = boundingRect;
-              framePointXY['bigRect'] = point_XY;
-              framePointXY['maxArea'] = area;
-              framePointXY['contours'] = i;
-              framePointXY["success"] = true;
+              BoundRectInfo['bigBoundingRect'] = boundingRect;
+              BoundRectInfo['bigRect'] = point_XY;
+              BoundRectInfo['maxArea'] = area;
+              BoundRectInfo['contours'] = i;
+              BoundRectInfo["success"] = true;
             }
-
           }
 
         }
@@ -350,30 +252,25 @@ function detectionDocument(dst, drawDst, videoWidth, videoHeight) {
     approx.delete();
   }
 
-  if (framePointXY["success"]) {
+  if (BoundRectInfo["success"]) {
     cv.drawContours(drawDst, contours, maxIndex, new cv.Scalar(0, 0, 255, 255), 4, cv.LINE_AA, hierarchy, false);
-    hierarchyArr = [];
     contours.delete();
     hierarchy.delete();
-    return framePointXY
+    return BoundRectInfo
   } else {
-
-    framePointXY["success"] = false;
-    framePointXY['bigBoundingRect'] = borderRect;
-    framePointXY['bigRect']['point'] = [
+    BoundRectInfo["success"] = false;
+    BoundRectInfo['bigBoundingRect'] = borderRect;
+    BoundRectInfo['bigRect']['point'] = [
       { x: 0, y: 0 },
       { x: borderRect.width, y: 0 },
       { x: borderRect.width, y: borderRect.height },
       { x: 0, y: borderRect.height }
     ]
-
-    hierarchyArr = [];
     contours.delete();
     hierarchy.delete();
-    return framePointXY;
+    return BoundRectInfo;
   }
 
 }
 
-
-export { detectionRectangle, detectionDocument };
+export { detectionSamllRectangle, detectionDocument };
