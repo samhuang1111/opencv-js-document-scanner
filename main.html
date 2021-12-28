@@ -67,9 +67,30 @@
     left: 50%;
     transform: translateX(-50%);
   }
+
+  .rectangle {
+      position: absolute;
+      left: 50%;
+      width: 150px;
+      height: 150px;
+      transform: translateX(-50%);
+      text-align: center;
+      background-color: #2196f3;
+      animation: move infinite 5s linear;
+    }
+    @keyframes move {
+      0% {top: 5%;background-color: #2196f3;
+      }
+      50% {top: 80%;background-color: #9e9e9e;
+      }
+      100% {top: 5%;background-color: #2196f3;}
+    }
+    
 </style>
 
 <body>
+
+  <div class="rectangle">TEST</div>
 
   <div style="width: 80%;height:4vh;margin:8px auto;">
     <button id="rotate">旋轉</button>

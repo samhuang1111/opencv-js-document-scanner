@@ -39,7 +39,6 @@ approxPolyDP參考文件:https://docs.opencv.org/4.x/dd/d49/tutorial_py_contour_
 
 當圖像辨識完畢後，提供一個控制項可以讓使用紙自由拉伸想要做校正的區域，像這樣
 
-<img src="https://raw.githubusercontent.com/tak40548798/opencv-js-document-scanner/master/readmeImage/1.png" style="height:350px;"/>
 
 藍色的框框是最後產生圖片的範圍，也就是要投影到的範圍，紅色的框框則是要提取的範圍，也就是warpperspective
 
