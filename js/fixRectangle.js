@@ -194,10 +194,12 @@ function detectionDocument(dst, drawDst, videoWidth, videoHeight) {
   let maxIndex = 0;
 
   for (let i = 0; i < contours.size(); i++) {
+
     const ci = contours.get(i)
     let peri1 = cv.arcLength(ci, true);
     let peri2 = 0.01 * peri1;
     let approx = new cv.Mat();
+
     cv.approxPolyDP(ci, approx, peri2, true);
     if (approx.rows === 4) {
       const area = cv.contourArea(ci, false);
@@ -205,6 +207,7 @@ function detectionDocument(dst, drawDst, videoWidth, videoHeight) {
         // 輪廓外接矩形
         const boundingRect = cv.boundingRect(ci);
         const RectFilter = () => {
+
           // 輪廓頂點
           let point_XY = [];
 
@@ -222,7 +225,7 @@ function detectionDocument(dst, drawDst, videoWidth, videoHeight) {
           let boundJudge = (boundingRect.x > 10 && boundingRect.x !== 0 && boundingRect.y !== 0);
 
           if (boundJudge) {
-            
+
             // 根據輪廓頂點數據篩選不要的矩形(去除位於右側邊邊的矩形)
             let pointJudge =
               !(point_XY["point"][1].x > borderRect.width - 10) &&
@@ -244,6 +247,7 @@ function detectionDocument(dst, drawDst, videoWidth, videoHeight) {
         RectFilter();
       }
     }
+
     ci.delete();
     approx.delete();
   }
