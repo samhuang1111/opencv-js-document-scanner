@@ -39,14 +39,15 @@ approxPolyDP參考文件:https://docs.opencv.org/4.x/dd/d49/tutorial_py_contour_
 
 當圖像辨識完畢後，提供一個控制項可以讓使用紙自由拉伸想要做校正的區域，像這樣
 
+<img src="https://raw.githubusercontent.com/tak40548798/opencv-js-document-scanner/master/readmeImage/%E6%9C%AA%E8%AE%8A%E6%8F%9B.png" style="height:380px;max-width:30%"/> <img src="https://raw.githubusercontent.com/tak40548798/opencv-js-document-scanner/master/readmeImage/%E9%80%8F%E8%A6%96%E8%AE%8A%E6%8F%9B%E5%9C%96.png" style="height:380px;max-width:30%"/>
 
 藍色的框框是最後產生圖片的範圍，也就是要投影到的範圍，紅色的框框則是要提取的範圍，也就是warpperspective
 
-在矩形的四個點頂(X,Y)，根據一個半徑繪製一個圓形，剛滑鼠移動到圓形內，用滑鼠的座標和矩形的頂點(X,Y)和半徑去判斷
+在矩形的四個點頂(X,Y)，根據一個半徑繪製一個圓形，用滑鼠的座標和矩形的頂點(X,Y)也是圓的中心和圓的半徑去判斷，滑鼠是否移動到圓形內
 
-當滑鼠點擊(mousedown)在圓形內部，做移動(mousemove)時，去更改所選到的這個矩形點頂的X,Y，然後再度繪製圓形
+當滑鼠點擊(mousedown)在圓形內部，做移動(mousemove)時，去更改所選到的這個矩形點頂的X,Y(更改資料)，然後再度繪製圓形(根據資料繪製圖片)
 
-最後做透視變換實根據每一個頂點的X,Y做warpperspective，就能得到結果
+最後做透視變換根據每一個頂點的X,Y做warpperspective(根據資料)，就能得到結果
 
 最後就會像影片上看到的那樣
 
