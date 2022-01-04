@@ -120,7 +120,7 @@ window.addEventListener("load", () => {
 
   function canvasStart() {
     const canvas = document.createElement("canvas");
-    const detectionWorker = new Worker("detectionWorker.js");
+    const detectionWorker = new Worker("./worker/detectionWorker.js");
 
     if (cvMat.cap) cvMat.cap = null;
     if (cvMat.srcDst) cvMat.srcDst.delete();
@@ -154,46 +154,35 @@ window.addEventListener("load", () => {
 
     cvMat.cap = new cv.VideoCapture(streamVideo); // 攝像頭
     cvMat.srcDst = new cv.Mat(canvasHeight, canvasWidth, cv.CV_8UC4); // 攝像頭資料
-    cvMat.calcDst = new cv.Mat(canvasHeight, canvasWidth, cv.CV_8UC1); // 計算畫面資料
-    // cvMat.drawDst = new cv.Mat(
-    //   canvasHeight,
-    //   canvasWidth,
-    //   cv.CV_8UC4,
-    //   new cv.Scalar(255, 0, 255, 0)
-    // );
+
     pauseCanvas = false;
 
     function onDetectionResult(e) {
-
-      let width = e.data.width;
-      let height = e.data.height;
-      let drawOutput = cv.matFromArray(
-        height,
-        width,
+      boundRectData.refreshBoundRectInfo = e.data.boundInfo;
+      const drawOutput = cv.matFromArray(
+        e.data.height,
+        e.data.width,
         cv.CV_8UC4,
         e.data.dstUint8Array
       );
-
       cv.imshow("drawOutput", drawOutput);
-
       drawOutput.delete();
     }
 
-    function sendOriginImageData() {
+    function sendMessageInMainWorker() {
       cvMat.cap.read(cvMat.srcDst);
 
-      const originUint8Array = new Uint8Array(cvMat.srcDst.data);
+      let originUint8Array = new Uint8Array(cvMat.srcDst.data);
 
-      let message = {
+      let dataMessage = {
         type: "data",
-        timeout: 33.3333333333,
         videoWidth: canvasWidth,
         videoHeight: canvasHeight,
         degree: degree,
         originUint8Array,
       };
 
-      detectionWorker.postMessage(message, [originUint8Array.buffer]);
+      detectionWorker.postMessage(dataMessage);
     }
 
     function initWorker() {
@@ -207,13 +196,11 @@ window.addEventListener("load", () => {
 
     function onMessage(e) {
       if (e.data.type === "load") {
-        sendOriginImageData();
+        sendMessageInMainWorker();
       }
       if (e.data.type === "data") {
         onDetectionResult(e);
-        setTimeout(() => {
-          sendOriginImageData();
-        }, 33.3333);
+        sendMessageInMainWorker();
       }
     }
 
@@ -393,7 +380,6 @@ window.addEventListener("load", () => {
           Math.pow(x - center["x"], 2) + Math.pow(y - center["y"], 2)
         );
         if (distance < radius) {
-          console.log(distance < radius);
           return true;
         } else {
           return false;
@@ -702,3 +688,6 @@ window.addEventListener("load", () => {
     })
     .catch((err) => console.log(err));
 });
+
+
+

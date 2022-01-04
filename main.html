@@ -89,9 +89,9 @@
 </style>
 
 <body>
+  <div class="rectangle">
 
-  <div class="rectangle">TEST</div>
-
+  </div>
   <div style="width: 80%;height:4vh;margin:8px auto;">
     <button id="rotate">旋轉</button>
     <button id="snapShot">截圖</button>
@@ -138,14 +138,15 @@
     </div>
     <div id="outputSection">
       <canvas id="fixCanvas" style="z-index: 100;">
-
+        
       </canvas>
     </div>
   </div>
-
 
 </body>
 
 </html>
 <script src="opencv.js"></script>
 <script src="main.js" type="module"></script>
+
+<!-- use web worker -->
