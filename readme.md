@@ -42,6 +42,7 @@ approxPolyDP參考文件:https://docs.opencv.org/4.x/dd/d49/tutorial_py_contour_
 
 <img src="https://raw.githubusercontent.com/tak40548798/opencv-js-document-scanner/master/readmeImage/%E6%9C%AA%E8%AE%8A%E6%8F%9B.png" style="height:380px;max-width:30%"/> <img src="https://raw.githubusercontent.com/tak40548798/opencv-js-document-scanner/master/readmeImage/%E9%80%8F%E8%A6%96%E8%AE%8A%E6%8F%9B%E5%9C%96.png" style="height:380px;max-width:30%"/>
 =======
+
 <img src="https://raw.githubusercontent.com/tak40548798/opencv-js-document-scanner/master/readmeImage/1.png" style="height:350px;"/>
 
 藍色的框框是最後產生圖片的範圍，也就是要投影到的範圍，紅色的框框則是要提取的範圍，也就是warpperspective
