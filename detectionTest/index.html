@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>detectionTest</title>
+</head>
+
+<style>
+  * {
+    margin: 0px;
+  }
+
+  #videoInput {
+    max-width: 100%;
+    max-height: 100%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    position: absolute;
+  }
+
+  #canvasBack {
+    max-width: 100%;
+    max-height: 100%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    position: absolute;
+  }
+
+  #canvasOutput {
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  .rectangle {
+    position: absolute;
+    left: 10%;
+    width: 150px;
+    height: 150px;
+    transform: translateX(-50%);
+    text-align: center;
+    background-color: #2196f3;
+    animation: move infinite 5s linear;
+    z-index: 1000;
+  }
+
+  @keyframes move {
+    0% {
+      top: 5%;
+      background-color: #2196f3;
+    }
+
+    50% {
+      top: 80%;
+      background-color: #9e9e9e;
+    }
+
+    100% {
+      top: 5%;
+      background-color: #2196f3;
+    }
+  }
+</style>
+
+<body>
+  <div class="rectangle">
+
+  </div>
+  <div style="width: 800px;height: 600px;margin: auto;position: relative;">
+    <video id="videoInput" style="z-index: 100;">
+    </video>
+    <canvas id="canvasBack" style="z-index: 200;">
+    </canvas>
+  </div>
+  <div style="width: 800px;height: 600px;margin: auto;position: relative;">
+    <canvas id="canvasOutput" style="position: absolute;z-index: 100;">
+
+    </canvas>
+  </div>
+</body>
+
+</html>
+<script src="../opencv.js"></script>
+<script src="index.js" type="module"></script>

@@ -92,12 +92,12 @@
   <div class="rectangle">
 
   </div>
+
   <div style="width: 80%;height:4vh;margin:8px auto;">
     <button id="rotate">旋轉</button>
     <button id="snapShot">截圖</button>
     <button id="correction">校正</button>
     <button id="reset">重置</button>
-
     <select name="sheetType" id="sheetType" style="display: none;">
       <option value="A8">A8</option>
       <option value="A4">A4</option>
@@ -106,45 +106,33 @@
   </div>
 
   <div id="previewSection">
-
     <div class="previewDiv" style="display: flex;">
       <video id="streamVideo">
-
       </video>
     </div>
-
     <div class="previewDiv" style="display: none;">
       <canvas id="videoOutput">
-
       </canvas>
     </div>
-
     <div class="previewDiv" style="display: flex;">
       <canvas id="drawOutput">
-
       </canvas>
     </div>
-
   </div>
 
   <div id="resultSection">
     <div id="editSection">
       <canvas id="saveCanvas" style="z-index: 100;">
-
       </canvas>
       <canvas id="editCanvas" style="z-index: 200;">
-
       </canvas>
     </div>
     <div id="outputSection">
       <canvas id="fixCanvas" style="z-index: 100;">
-        
       </canvas>
     </div>
   </div>
-
 </body>
-
 </html>
 <script src="opencv.js"></script>
 <script src="main.js" type="module"></script>

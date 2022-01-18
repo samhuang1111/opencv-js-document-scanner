@@ -179,10 +179,10 @@ window.addEventListener("load", () => {
         videoWidth: canvasWidth,
         videoHeight: canvasHeight,
         degree: degree,
-        originUint8Array,
+        originUint8ArrayBuffer:originUint8Array.buffer,
       };
 
-      detectionWorker.postMessage(dataMessage);
+      detectionWorker.postMessage(dataMessage,[originUint8Array.buffer]);
     }
 
     function initWorker() {

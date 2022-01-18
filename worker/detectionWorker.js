@@ -62,15 +62,17 @@ function detectionProcess(imageUint8Array, degree, width, height) {
 
   cv.cvtColor(cvMat.calcDst, cvMat.calcDst, cv.COLOR_RGBA2GRAY);
 
+  let bound={}, dstUint8Array, dstWidth, dstHeight;
+
   if (degree === 90 || degree === 270) {
-    boundRectData.refreshBoundRectInfo = detectionDocument(
+    bound["refreshBoundRectInfo"] = detectionDocument(
       cvMat.calcDst,
       cvMat.drawDst,
       height,
       width
     );
   } else {
-    boundRectData.refreshBoundRectInfo = detectionDocument(
+    bound["refreshBoundRectInfo"] = detectionDocument(
       cvMat.calcDst,
       cvMat.drawDst,
       width,
@@ -78,9 +80,9 @@ function detectionProcess(imageUint8Array, degree, width, height) {
     );
   }
 
-  const dstUint8Array = new Uint8Array(cvMat.drawDst.data);
-  const dstWidth = cvMat.drawDst.cols;
-  const dstHeight = cvMat.drawDst.rows;
+  dstUint8Array = new Uint8Array(cvMat.drawDst.data);
+  dstWidth = cvMat.drawDst.cols;
+  dstHeight = cvMat.drawDst.rows;
 
   cvMat.srcDst.delete();
   cvMat.drawDst.delete();
@@ -90,6 +92,7 @@ function detectionProcess(imageUint8Array, degree, width, height) {
     dstUint8Array: dstUint8Array,
     dstWidth: dstWidth,
     dstHeight: dstHeight,
+    bound: bound,
   };
 }
 
@@ -119,25 +122,30 @@ self.onmessage = function (e) {
   }
 
   if (e.data.type === "data") {
+
     const {
-      originUint8Array: originUint8Array,
+      originUint8ArrayBuffer: originUint8ArrayBuffer,
       videoWidth: canvasWidth,
       videoHeight: canvasHeight,
       degree: degree,
     } = e.data;
 
+    const originUint8Array = new Uint8Array(originUint8ArrayBuffer);
+
     const {
       dstUint8Array: dstUint8Array,
       dstWidth: dstWidth,
       dstHeight: dstHeight,
+      bound:bound
     } = detectionProcess(originUint8Array, degree, canvasWidth, canvasHeight);
 
     sendMessageInWebWorker(
       dstUint8Array,
       dstWidth,
       dstHeight,
-      boundRectData.refreshBoundRectInfo
+      bound
     );
+
 
   }
 };
