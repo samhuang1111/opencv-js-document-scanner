@@ -3,6 +3,9 @@
 
 使用 opencv.js 辨別文件區域，將白紙的區域提取出來，將畫面提取出來時會有一個控制框，當萬一辨識有誤時，可以讓使用者手動框選要做變換的區域，最後可以將白紙掃描出來。
 
+## Demo 參考影片
+[https://youtu.be/gHPePMDGteE](https://youtu.be/gHPePMDGteE) 
+
 ## 辨識圖像的具體流程介紹
 
 ### 對圖像做前置處理
@@ -51,7 +54,3 @@ approxPolyDP參考文件:https://docs.opencv.org/4.x/dd/d49/tutorial_py_contour_
 最後做透視變換根據每一個頂點的X,Y做warpperspective(根據資料)，就能得到結果
 
 最後就會像影片上看到的那樣
-
-## Demo 參考影片
-
-[https://youtu.be/gHPePMDGteE](https://youtu.be/gHPePMDGteE) 
